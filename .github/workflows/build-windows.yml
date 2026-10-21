@@ -1,0 +1,123 @@
+name: Build Windows
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+\+[0-9]+'
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: '3.47.7'
+  INNO_SETUP_VERSION: '7.0.2'
+  INNO_SETUP_URL: 'https://github.com/jrsoftware/issrc/releases/download/is-7_0_2/innosetup-7.0.2-x64.exe'
+  INNO_SETUP_SHA256: '5ad54ca3def786f8f4212552e54cc6d8d61329e2d24a1cfee0571d42c2684ff1'
+
+jobs:
+  build-windows-x64:
+    name: Build Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $rawVersion = ((Select-String -Path pubspec.yaml -Pattern '^version:\s*(\S+)' | Select-Object -First 1).Matches[0].Groups[1].Value)
+          if ($env:GITHUB_REF_TYPE -ne 'tag') {
+            throw 'This workflow only runs from a version tag.'
+          }
+          if ($env:GITHUB_REF_NAME -ne $rawVersion) {
+            throw "Tag $env:GITHUB_REF_NAME does not match pubspec version $rawVersion."
+          }
+          "VERSION=$rawVersion" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Resolved version: $rawVersion"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Set up Inno Setup 7
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Join-Path $env:RUNNER_TEMP "innosetup-$env:INNO_SETUP_VERSION-x64.exe"
+          Invoke-WebRequest -Uri $env:INNO_SETUP_URL -OutFile $installer -UseBasicParsing
+          $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:INNO_SETUP_SHA256) {
+            throw "Inno Setup checksum mismatch: $actualHash"
+          }
+          $process = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Inno Setup installer failed with exit code $($process.ExitCode)"
+          }
+
+      - name: Build Windows app and installer
+        env:
+          JO_MS_CLIENT_ID: ${{ secrets.JO_MS_CLIENT_ID }}
+        run: pwsh -NoProfile -File scripts/build.ps1
+
+      - name: Package portable ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Compress-Archive -Path 'build/windows/x64/runner/Release/*' -DestinationPath "JO-Launcher-$env:VERSION-windows-x64-portable.zip"
+
+      - name: Rename installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Copy-Item "dist/JO-Launcher-Setup-$env:VERSION.exe" "JO-Launcher-$env:VERSION-windows-x64-setup.exe"
+
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -File "JO-Launcher-$env:VERSION-windows-x64-*" | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)" | Set-Content -LiteralPath "$($_.FullName).sha256" -Encoding ascii
+          }
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-x64
+          path: |
+            JO-Launcher-${{ env.VERSION }}-windows-x64-portable.zip
+            JO-Launcher-${{ env.VERSION }}-windows-x64-portable.zip.sha256
+            JO-Launcher-${{ env.VERSION }}-windows-x64-setup.exe
+            JO-Launcher-${{ env.VERSION }}-windows-x64-setup.exe.sha256
+          if-no-files-found: error
+
+      - name: Upload assets to draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: true
+          files: |
+            JO-Launcher-${{ env.VERSION }}-windows-x64-portable.zip
+            JO-Launcher-${{ env.VERSION }}-windows-x64-portable.zip.sha256
+            JO-Launcher-${{ env.VERSION }}-windows-x64-setup.exe
+            JO-Launcher-${{ env.VERSION }}-windows-x64-setup.exe.sha256

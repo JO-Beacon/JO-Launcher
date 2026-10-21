@@ -7,7 +7,6 @@
 // “Material leaked in”.
 
 import 'dart:io';
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -72,8 +72,7 @@ class _LauncherTooltipState extends State<LauncherTooltip> {
     final RenderObject? ro = context.findRenderObject();
     if (ro is! RenderBox || !ro.hasSize) return;
     final RenderBox box = ro;
-    final OverlayState? overlay = Overlay.of(context, rootOverlay: true);
-    if (overlay == null) return;
+    final OverlayState overlay = Overlay.of(context, rootOverlay: true);
 
     final LauncherPalette p = LauncherTheme.of(context);
     final TextStyle style = _style(p);

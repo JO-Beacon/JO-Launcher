@@ -1,6 +1,6 @@
 # JO-Launcher
 
-[![CI](https://github.com/JO-Beacon/JO-Launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/JO-Beacon/JO-Launcher/actions/workflows/ci.yml)
+[![CI](https://github.com/JO-Beacon/JO-Launcher/actions/workflows/build-windows.yml/badge.svg)](https://github.com/JO-Beacon/JO-Launcher/actions/workflows/build-windows.yml)
 
 JO-Launcher is an open-source launcher for Minecraft: Java Edition, focused on launching existing game installations with a clean, responsive desktop experience. Windows is supported today; Linux support is on the roadmap.
 

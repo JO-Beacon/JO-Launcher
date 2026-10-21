@@ -1,6 +1,6 @@
 # JO-Launcher
 
-[![CI](https://github.com/JO-Beacon/JO-Launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/JO-Beacon/JO-Launcher/actions/workflows/ci.yml)
+[![CI](https://github.com/JO-Beacon/JO-Launcher/actions/workflows/build-windows.yml/badge.svg)](https://github.com/JO-Beacon/JO-Launcher/actions/workflows/build-windows.yml)
 
 JO-Launcher は、Minecraft: Java Edition 用のオープンソースランチャーです。既存のゲーム環境を、シンプルで軽快なデスクトップ体験で起動することに重点を置いています。現在は Windows に対応しており、Linux はロードマップに含まれています。
 
