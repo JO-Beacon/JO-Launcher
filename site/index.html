@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e0f12">
+  <meta name="description" content="JO-Launcher is a lightweight, open-source desktop launcher for Minecraft: Java Edition.">
+  <title>JO-Launcher — a lightweight Minecraft: Java Edition launcher</title>
+  <link rel="icon" href="assets/favicon.ico">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header>
+    <div class="wrap header-inner">
+      <a class="brand" href="./"><span class="mark" aria-hidden="true"></span>JO-Launcher</a>
+      <nav aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="#why">Why</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="#download">Download</a>
+        <a href="https://github.com/JO-Beacon/JO-Launcher" target="_blank" rel="noopener">GitHub ↗</a>
+      </nav>
+      <div class="lang" aria-label="Language">
+        <a class="active" href="index.html" aria-current="page">EN</a>
+        <a href="sv.html">SV</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="wrap hero">
+      <div>
+        <p class="eyebrow">Open source · Windows desktop</p>
+        <h1>A lighter way to <em>launch</em> Minecraft.</h1>
+        <p class="lead">JO-Launcher is a focused desktop launcher for Minecraft: Java Edition. It starts installations you already have, keeps the interface quiet, and stays out of the way.</p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/JO-Beacon/JO-Launcher/releases" target="_blank" rel="noopener">Download <span>↗</span></a>
+          <a class="btn" href="https://github.com/JO-Beacon/JO-Launcher" target="_blank" rel="noopener">View source</a>
+        </div>
+        <p class="note">Windows 10/11 · Apache-2.0 · No game files included</p>
+      </div>
+
+      <figure class="shot">
+        <img src="assets/screenshot.png" alt="JO-Launcher version settings screen" width="1128" height="720">
+        <figcaption><span>Version settings</span><span>Windows desktop</span></figcaption>
+      </figure>
+    </section>
+
+    <div class="wrap meta-strip" aria-label="Project facts">
+      <div><strong>Windows 10/11</strong><span>Current platform</span></div>
+      <div><strong>Flutter / Dart</strong><span>Native desktop UI</span></div>
+      <div><strong>Apache-2.0</strong><span>Open source</span></div>
+      <div><strong>7 languages</strong><span>English · Svenska · 日本語 · Português · Español · Français · Deutsch</span></div>
+    </div>
+
+    <section id="features" class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">01 / Features</p>
+          <h2>Everything needed to launch. Nothing shouting for attention.</h2>
+        </div>
+        <p>A small set of focused tools for players who already own Minecraft: Java Edition and want a quiet desktop client.</p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="index">01</span>
+          <h3>Version discovery</h3>
+          <p>Scans <code>versions/</code> and recognizes vanilla, Fabric, Quilt, Forge and NeoForge installations.</p>
+        </article>
+        <article class="feature">
+          <span class="index">02</span>
+          <h3>Per-version settings</h3>
+          <p>Java path, memory limits and JVM arguments are stored in <code>jolauncher.json</code> inside each version directory.</p>
+        </article>
+        <article class="feature">
+          <span class="index">03</span>
+          <h3>Launch workspace</h3>
+          <p>Choose a version, start and stop the game, and follow the live log from one screen.</p>
+        </article>
+        <article class="feature">
+          <span class="index">04</span>
+          <h3>Microsoft sign-in</h3>
+          <p>Sign in with your own Microsoft account through the device-code flow. Availability depends on Mojang application approval.</p>
+        </article>
+        <article class="feature">
+          <span class="index">05</span>
+          <h3>Desktop UI</h3>
+          <p>Dark, light and follow-system themes, a draggable sidebar, and seven interface languages.</p>
+        </article>
+        <article class="feature">
+          <span class="index">06</span>
+          <h3>Local account data</h3>
+          <p>Tokens are kept in a local Windows DPAPI-protected file. No backend, no telemetry; delete account data from Settings.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="why" class="wrap why">
+      <div>
+        <p class="section-kicker">02 / Why JO-Launcher</p>
+        <h2>Built for the installation you already have.</h2>
+      </div>
+      <div>
+        <p>JO-Launcher does not download or redistribute the game. Point it at an existing <code>.minecraft</code> directory and launch the versions that are already there.</p>
+        <p>The goal is a focused client: fast startup, a small interface, no background services, no advertising, and no unnecessary data collection.</p>
+        <ul class="checklist">
+          <li>No bundled game files</li>
+          <li>No account backend or telemetry</li>
+          <li>Open source and auditable</li>
+          <li>Account data can be deleted from the app</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="roadmap" class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">03 / Roadmap</p>
+          <h2>What comes next.</h2>
+        </div>
+        <p>Version management, Linux support and account tools are planned. The current release focuses on the launcher itself.</p>
+      </div>
+      <div class="roadmap">
+        <div><span>NEXT</span><strong>Version management</strong><small>Install versions, import modpacks, delete and rename.</small></div>
+        <div><span>PLANNED</span><strong>Linux desktop</strong><small>A second desktop target for the same Flutter codebase.</small></div>
+        <div><span>PLANNED</span><strong>Account tools</strong><small>Avatars and switching between accounts.</small></div>
+        <div><span>PLANNED</span><strong>Crash diagnostics</strong><small>Clearer failure reports and recovery paths.</small></div>
+      </div>
+    </section>
+
+    <section id="download" class="wrap">
+      <div class="download">
+        <div>
+          <p class="section-kicker">04 / Download</p>
+          <h2>Get a build.</h2>
+          <p>Windows builds, source archives and checksums are published on GitHub Releases. You can also build JO-Launcher from source with Flutter.</p>
+        </div>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/JO-Beacon/JO-Launcher/releases" target="_blank" rel="noopener">Open releases <span>↗</span></a>
+          <a class="btn" href="https://github.com/JO-Beacon/JO-Launcher" target="_blank" rel="noopener">Source code</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-inner">
+      <div>
+        <a class="brand footer-brand" href="./"><span class="mark" aria-hidden="true"></span>JO-Launcher</a>
+        <p class="disclaimer">Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft. Minecraft is a trademark of Mojang Synergies AB.</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/JO-Beacon/JO-Launcher" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/JO-Beacon/JO-Launcher/issues" target="_blank" rel="noopener">Issues</a>
+        <a href="https://github.com/JO-Beacon/JO-Launcher/blob/main/PRIVACY.md" target="_blank" rel="noopener">Privacy</a>
+        <a href="https://github.com/JO-Beacon/JO-Launcher/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+        <a href="https://github.com/JO-Beacon/JO-Launcher/blob/main/NOTICE" target="_blank" rel="noopener">Notice</a>
+      </div>
+    </div>
+    <div class="wrap footer-bottom">
+      <span>JO-Launcher · open source desktop launcher</span>
+      <span>Windows 10/11 · Apache-2.0</span>
+    </div>
+  </footer>
+</body>
+</html>

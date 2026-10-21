@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e0f12">
+  <meta name="description" content="JO-Launcher är en lättviktig startare med öppen källkod för Minecraft: Java Edition.">
+  <title>JO-Launcher — en lättare Minecraft: Java Edition-startare</title>
+  <link rel="icon" href="assets/favicon.ico">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Hoppa till innehållet</a>
+
+  <header>
+    <div class="wrap header-inner">
+      <a class="brand" href="sv.html"><span class="mark" aria-hidden="true"></span>JO-Launcher</a>
+      <nav aria-label="Huvudnavigering">
+        <a href="#features">Funktioner</a>
+        <a href="#why">Varför</a>
+        <a href="#roadmap">Färdplan</a>
+        <a href="#download">Ladda ner</a>
+        <a href="https://github.com/JO-Beacon/JO-Launcher" target="_blank" rel="noopener">GitHub ↗</a>
+      </nav>
+      <div class="lang" aria-label="Språk">
+        <a href="index.html">EN</a>
+        <a class="active" href="sv.html" aria-current="page">SV</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="wrap hero">
+      <div>
+        <p class="eyebrow">Öppen källkod · Windows-skrivbord</p>
+        <h1>Ett lättare sätt att <em>starta</em> Minecraft.</h1>
+        <p class="lead">JO-Launcher är en fokuserad skrivbordsstartare för Minecraft: Java Edition. Den startar installationer du redan har, håller gränssnittet lugnt och håller sig undan.</p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/JO-Beacon/JO-Launcher/releases" target="_blank" rel="noopener">Ladda ner <span>↗</span></a>
+          <a class="btn" href="https://github.com/JO-Beacon/JO-Launcher" target="_blank" rel="noopener">Visa källkod</a>
+        </div>
+        <p class="note">Windows 10/11 · Apache-2.0 · Inga spelfiler ingår</p>
+      </div>
+
+      <figure class="shot">
+        <img src="assets/screenshot.png" alt="JO-Launchers skärm för versionsinställningar" width="1128" height="720">
+        <figcaption><span>Versionsinställningar</span><span>Windows-skrivbord</span></figcaption>
+      </figure>
+    </section>
+
+    <div class="wrap meta-strip" aria-label="Projektfakta">
+      <div><strong>Windows 10/11</strong><span>Nuvarande plattform</span></div>
+      <div><strong>Flutter / Dart</strong><span>Inbyggt skrivbordsgränssnitt</span></div>
+      <div><strong>Apache-2.0</strong><span>Öppen källkod</span></div>
+      <div><strong>7 språk</strong><span>English · Svenska · 日本語 · Português · Español · Français · Deutsch</span></div>
+    </div>
+
+    <section id="features" class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">01 / Funktioner</p>
+          <h2>Allt som behövs för att starta. Inget som kräver uppmärksamhet.</h2>
+        </div>
+        <p>En liten uppsättning fokuserade verktyg för spelare som redan äger Minecraft: Java Edition och vill ha en lugn skrivbordsklient.</p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="index">01</span>
+          <h3>Versionsidentifiering</h3>
+          <p>Skannar <code>versions/</code> och känner igen vanilla-, Fabric-, Quilt-, Forge- och NeoForge-installationer.</p>
+        </article>
+        <article class="feature">
+          <span class="index">02</span>
+          <h3>Inställningar per version</h3>
+          <p>Java-sökväg, minnesgränser och JVM-argument sparas i <code>jolauncher.json</code> i respektive versionsmapp.</p>
+        </article>
+        <article class="feature">
+          <span class="index">03</span>
+          <h3>Startarbetsyta</h3>
+          <p>Välj en version, starta och stoppa spelet och följ live-loggen från en och samma skärm.</p>
+        </article>
+        <article class="feature">
+          <span class="index">04</span>
+          <h3>Microsoft-inloggning</h3>
+          <p>Logga in med ditt eget Microsoft-konto via enhetskodflödet. Tillgängligheten beror på Mojangs programgodkännande.</p>
+        </article>
+        <article class="feature">
+          <span class="index">05</span>
+          <h3>Skrivbordsgränssnitt</h3>
+          <p>Mörkt, ljust och följ-systemet-tema, en dragbar sidopanel och sju gränssnittsspråk.</p>
+        </article>
+        <article class="feature">
+          <span class="index">06</span>
+          <h3>Lokala kontodata</h3>
+          <p>Token lagras i en lokal fil skyddad av Windows DPAPI. Ingen backend, ingen telemetri; radera kontodata i inställningarna.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="why" class="wrap why">
+      <div>
+        <p class="section-kicker">02 / Varför JO-Launcher</p>
+        <h2>Byggd för installationen du redan har.</h2>
+      </div>
+      <div>
+        <p>JO-Launcher laddar inte ner eller distribuerar spelet. Peka den mot en befintlig <code>.minecraft</code>-mapp och starta de versioner som redan finns där.</p>
+        <p>Målet är en fokuserad klient: snabb start, ett litet gränssnitt, inga bakgrundstjänster, ingen reklam och ingen onödig datainsamling.</p>
+        <ul class="checklist">
+          <li>Inga medföljande spelfiler</li>
+          <li>Ingen konto-backend eller telemetri</li>
+          <li>Öppen källkod och granskningsbar</li>
+          <li>Kontodata kan raderas i appen</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="roadmap" class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">03 / Färdplan</p>
+          <h2>Det som kommer härnäst.</h2>
+        </div>
+        <p>Versionshantering, Linux-stöd och kontoverktyg är planerade. Den nuvarande versionen fokuserar på själva startaren.</p>
+      </div>
+      <div class="roadmap">
+        <div><span>NÄSTA</span><strong>Versionshantering</strong><small>Installera versioner, importera modpacks, radera och byta namn.</small></div>
+        <div><span>PLANERAT</span><strong>Linux-skrivbord</strong><small>Ett andra skrivbordsmål för samma Flutter-kodbas.</small></div>
+        <div><span>PLANERAT</span><strong>Kontoverktyg</strong><small>Avatarer och växling mellan konton.</small></div>
+        <div><span>PLANERAT</span><strong>Kraschdiagnostik</strong><small>Tydligare felrapporter och återställningsvägar.</small></div>
+      </div>
+    </section>
+
+    <section id="download" class="wrap">
+      <div class="download">
+        <div>
+          <p class="section-kicker">04 / Ladda ner</p>
+          <h2>Hämta ett bygge.</h2>
+          <p>Windows-byggen, källarkiv och checksummor publiceras på GitHub Releases. Du kan också bygga JO-Launcher från källkoden med Flutter.</p>
+        </div>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/JO-Beacon/JO-Launcher/releases" target="_blank" rel="noopener">Öppna releases <span>↗</span></a>
+          <a class="btn" href="https://github.com/JO-Beacon/JO-Launcher" target="_blank" rel="noopener">Källkod</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-inner">
+      <div>
+        <a class="brand footer-brand" href="sv.html"><span class="mark" aria-hidden="true"></span>JO-Launcher</a>
+        <p class="disclaimer">Inte en officiell Minecraft-produkt. Inte godkänd av eller associerad med Mojang eller Microsoft. Minecraft är ett varumärke som tillhör Mojang Synergies AB.</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/JO-Beacon/JO-Launcher" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/JO-Beacon/JO-Launcher/issues" target="_blank" rel="noopener">Issues</a>
+        <a href="https://github.com/JO-Beacon/JO-Launcher/blob/main/PRIVACY.md" target="_blank" rel="noopener">Integritet</a>
+        <a href="https://github.com/JO-Beacon/JO-Launcher/blob/main/LICENSE" target="_blank" rel="noopener">Licens</a>
+        <a href="https://github.com/JO-Beacon/JO-Launcher/blob/main/NOTICE" target="_blank" rel="noopener">Meddelande</a>
+      </div>
+    </div>
+    <div class="wrap footer-bottom">
+      <span>JO-Launcher · startare med öppen källkod</span>
+      <span>Windows 10/11 · Apache-2.0</span>
+    </div>
+  </footer>
+</body>
+</html>

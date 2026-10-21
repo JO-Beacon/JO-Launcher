@@ -4,7 +4,7 @@
 
 JO-Launcher は、Minecraft: Java Edition 用のオープンソースランチャーです。既存のゲーム環境を、シンプルで軽快なデスクトップ体験で起動することに重点を置いています。現在は Windows に対応しており、Linux はロードマップに含まれています。
 
-[English](./README.md) · [日本語](./README_ja.md) · [Svenska](./README_sv.md) · [Português (Brasil)](./README_pt_BR.md) · [Español](./README_es.md) · [Français](./README_fr.md) · [Deutsch](./README_de.md) · [Privacy](./PRIVACY.md) · [Apache License 2.0](./LICENSE)
+[English](./README.md) · [日本語](./README_ja.md) · [Svenska](./README_sv.md) · [Português (Brasil)](./README_pt_BR.md) · [Español](./README_es.md) · [Français](./README_fr.md) · [Deutsch](./README_de.md) · [Website](https://jo-beacon.github.io/JO-Launcher/) · [Privacy](./PRIVACY.md) · [Apache License 2.0](./LICENSE)
 
 ![JO-Launcher](docs/screenshot.png)
 

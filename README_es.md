@@ -4,7 +4,7 @@
 
 JO-Launcher es un launcher de código abierto para Minecraft: Java Edition, centrado en iniciar instalaciones existentes con una experiencia de escritorio limpia y ágil. Windows es compatible hoy; el soporte para Linux está en la hoja de ruta.
 
-[English](./README.md) · [日本語](./README_ja.md) · [Svenska](./README_sv.md) · [Português (Brasil)](./README_pt_BR.md) · [Español](./README_es.md) · [Français](./README_fr.md) · [Deutsch](./README_de.md) · [Privacy](./PRIVACY.md) · [Apache License 2.0](./LICENSE)
+[English](./README.md) · [日本語](./README_ja.md) · [Svenska](./README_sv.md) · [Português (Brasil)](./README_pt_BR.md) · [Español](./README_es.md) · [Français](./README_fr.md) · [Deutsch](./README_de.md) · [Website](https://jo-beacon.github.io/JO-Launcher/) · [Privacy](./PRIVACY.md) · [Apache License 2.0](./LICENSE)
 
 ![JO-Launcher](docs/screenshot.png)
 
