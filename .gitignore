@@ -1,0 +1,47 @@
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 其它
+*.log
+
+# Dart / Flutter
+.dart_tool/
+.flutter-plugins-dependencies
+.pub/
+.pub-cache/
+/coverage/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+*.iml
+migrate_working_dir/
+app.*.symbols
+app.*.map.json
+
+# Linux 桌面端生成物
+linux/flutter/ephemeral/

@@ -1,0 +1,11 @@
+# Static analysis configuration. See https://dart.dev/guides/language/analysis-options
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - windows/**
+
+linter:
+  rules:

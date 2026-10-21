@@ -1,0 +1,45 @@
+name: jolauncher
+description: "JO-Launcher — an open-source launcher for Minecraft: Java Edition."
+publish_to: 'none'
+version: 0.0.1+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  archive: ^4.5.2
+  file_selector: ^1.1.0
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  package_info_plus: ^9.0.0
+  flutter_secure_storage: ^10.3.4
+  shared_preferences: ^2.3.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/licenses/SourceHanSans-OFL-1.1.txt
+    - assets/licenses/RemixIcon-License-1.0.txt
+    - LICENSE
+    - NOTICE
+  fonts:
+    # Remix Icon: our constants live in lib/ui/icons.dart.
+    # The font is the original from Remix-Design/remixicon.
+    # License: Remix Icon License v1.0 — https://remixicon.com
+    - family: RemixIcon
+      fonts:
+        - asset: assets/fonts/remixicon.ttf
+    - family: NotoSansSC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-VF.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansSC-VF.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansSC-VF.ttf
+          weight: 700

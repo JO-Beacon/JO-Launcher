@@ -1,0 +1,17 @@
+JO-Launcher
+Copyright 2026 JO-Beacon
+
+This product includes software developed by third parties:
+
+- Flutter (https://flutter.dev) — BSD-3-Clause
+- Dart (https://dart.dev) — BSD-3-Clause
+- Noto Sans SC — SIL Open Font License 1.1
+  assets/fonts/NotoSansSC-VF.ttf (variable font, weights 400/500/700)
+  (Full SIL OFL 1.1 text: assets/licenses/SourceHanSans-OFL-1.1.txt)
+- Remix Icon (https://remixicon.com) — Remix Icon License v1.0
+  assets/fonts/remixicon.ttf (icon font)
+  Constants live in lib/ui/icons.dart; codepoints are taken from the official fonts/remixicon.css
+  (Full license: assets/licenses/RemixIcon-License-1.0.txt)
+
+The complete license list for Dart / Flutter dependencies is bundled with the app
+and can be viewed in Settings → About → Licenses.
