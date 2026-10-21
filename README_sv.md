@@ -20,7 +20,7 @@ JO-Launcher är en öppen källkods-startare för Minecraft: Java Edition, med f
 
 ## Färdplan
 
-- Versionshantering: installera spelversioner, importera modpacks, radera och byta namn
+- Versionshantering: installera från lokala filer som användaren tillhandahåller, importera modpacks, radera och byta namn
 - Linux-skrivbordsstöd
 - Kontavatarer och kontoväxling
 - Kraschdiagnostik och återställning

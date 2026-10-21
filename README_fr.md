@@ -20,7 +20,7 @@ JO-Launcher est un lanceur open source pour Minecraft: Java Edition, pensé pour
 
 ## Feuille de route
 
-- Gestion des versions : installer des versions du jeu, importer des modpacks, supprimer et renommer
+- Gestion des versions : installer depuis des fichiers locaux fournis par l’utilisateur, importer des modpacks, supprimer et renommer
 - Prise en charge du bureau Linux
 - Avatars de compte et changement de compte
 - Diagnostic et récupération après plantage

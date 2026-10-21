@@ -20,7 +20,7 @@ JO-Launcher ist ein quelloffener Launcher für Minecraft: Java Edition, der vorh
 
 ## Roadmap
 
-- Versionsverwaltung: Spielversionen installieren, Modpacks importieren, löschen und umbenennen
+- Versionsverwaltung: aus vom Benutzer bereitgestellten lokalen Dateien installieren, Modpacks importieren, löschen und umbenennen
 - Linux-Desktop-Unterstützung
 - Konto-Avatare und Kontowechsel
 - Absturzdiagnose und Wiederherstellung
