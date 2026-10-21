@@ -6,7 +6,7 @@ JO-Launcher är en öppen källkods-startare för Minecraft: Java Edition, med f
 
 [English](./README.md) · [日本語](./README_ja.md) · [Svenska](./README_sv.md) · [Português (Brasil)](./README_pt_BR.md) · [Español](./README_es.md) · [Français](./README_fr.md) · [Deutsch](./README_de.md) · [Website](https://jo-beacon.github.io/JO-Launcher/) · [Privacy](./PRIVACY.md) · [Apache License 2.0](./LICENSE)
 
-![JO-Launcher](docs/screenshot.png)
+![JO-Launcher](docs/screenshot_sv.png)
 
 > **INTE EN OFFICIELL MINECRAFT-PRODUKT. INTE GODKÄND AV ELLER ASSOCIERAD MED MOJANG ELLER MICROSOFT.**
 
