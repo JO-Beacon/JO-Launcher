@@ -230,6 +230,30 @@ class _LauncherAppState extends State<LauncherApp>
     _signIn(account);
   }
 
+  /// Material theme for overlay subtrees (dialogs, menus).
+  ///
+  /// `builder` supplies the default text style to the main tree, but Material
+  /// widgets read `textTheme` instead. Both must carry the same quiet grey
+  /// underline or dialogs suddenly use Material's yellow double underline.
+  ThemeData _themeFor(LauncherPalette p) {
+    final ThemeData base = ThemeData(
+      useMaterial3: false,
+      fontFamily: LauncherFonts.sans,
+      scaffoldBackgroundColor: p.bg,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: p.accent,
+        brightness: _effectiveDark ? Brightness.dark : Brightness.light,
+      ),
+    );
+    return base.copyWith(
+      textTheme: base.textTheme.apply(
+        decoration: TextDecoration.underline,
+        decorationColor: LauncherFonts.decorationColor(p),
+        decorationStyle: TextDecorationStyle.solid,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final LauncherPalette palette = LauncherPalette.lerp(
@@ -250,29 +274,28 @@ class _LauncherAppState extends State<LauncherApp>
       ],
       supportedLocales: AppLocalizations.supportedLocales,
       locale: AppLocalizations.localeFor(_settings.locale),
-      theme: ThemeData(
-        useMaterial3: false,
-        fontFamily: LauncherFonts.sans,
-        scaffoldBackgroundColor: palette.bg,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: palette.accent,
-          brightness: _effectiveDark ? Brightness.dark : Brightness.light,
-        ),
-      ),
+      theme: _themeFor(palette),
       builder: (BuildContext context, Widget? child) {
         // LauncherTheme must sit above the Navigator so dialogs can read it.
         return AnimatedBuilder(
           animation: _themeAnim,
           child: child ?? const SizedBox.shrink(),
           builder: (BuildContext context, Widget? inner) {
+            final LauncherPalette p = LauncherPalette.lerp(
+              LauncherPalette.light,
+              LauncherPalette.dark,
+              _themeAnim.value,
+            );
             return LauncherTheme(
               settings: _settings,
-              palette: LauncherPalette.lerp(
-                LauncherPalette.light,
-                LauncherPalette.dark,
-                _themeAnim.value,
+              palette: p,
+              child: DefaultTextStyle(
+                style: TextStyle(
+                  fontFamily: LauncherFonts.sans,
+                  color: p.text,
+                ).merge(LauncherFonts.decorationOn(p)),
+                child: inner ?? const SizedBox.shrink(),
               ),
-              child: inner ?? const SizedBox.shrink(),
             );
           },
         );

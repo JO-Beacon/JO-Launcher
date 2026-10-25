@@ -67,7 +67,7 @@ class LauncherPalette {
     text: Color(0xFF1C1B19),
     secondary: Color(0xFF6E6A62),
     icon: Color(0xFF6E6A62),
-    accent: Color(0xFF9A7B4F),
+    accent: Color(0xFF4A6B8A),
     isDark: false,
   );
 }
@@ -99,6 +99,22 @@ class LauncherFonts {
     height: 1.4,
     fontSize: 12,
     letterSpacing: 0.4,
+  );
+
+  /// Color of the global decorative underline: quiet grey, follows the theme.
+  ///
+  /// The line is not a link style; it is the shared decorative rule used by
+  /// labels and headings. Keeping it here means dialogs and the main UI use
+  /// the same colour.
+  static Color decorationColor(LauncherPalette p) =>
+      p.secondary.withValues(alpha: p.isDark ? 0.45 : 0.32);
+
+  /// Global decorative underline: one solid 1px line.
+  static TextStyle decorationOn(LauncherPalette p) => TextStyle(
+    decoration: TextDecoration.underline,
+    decorationColor: decorationColor(p),
+    decorationStyle: TextDecorationStyle.solid,
+    decorationThickness: 1,
   );
 }
 

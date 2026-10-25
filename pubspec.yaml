@@ -22,7 +22,9 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
-  uses-material-design: true
+  # The UI uses its own Remix Icon font; bundling Material Icons would only
+  # add 1.6 MB for glyphs this app never renders.
+  uses-material-design: false
   assets:
     - assets/licenses/SourceHanSans-OFL-1.1.txt
     - assets/licenses/RemixIcon-License-1.0.txt
