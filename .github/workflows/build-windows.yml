@@ -5,6 +5,9 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: windows-${{ github.ref }}
   cancel-in-progress: true
@@ -29,16 +32,25 @@ jobs:
           python tools/verify_binary.py
           build/ci/Release/JO-Launcher.exe
 
-      - name: Collect artifacts
+      - name: Package portable ZIP
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = "artifacts/package"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item build/ci/Release/JO-Launcher.exe $stage
+          Copy-Item README.md, LICENSE, NOTICE, PRIVACY.md $stage
+          $zip = "JO-Launcher-${{ github.ref_name }}-windows-x64-portable.zip"
+          if (Test-Path $zip) { Remove-Item $zip }
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
+          "$hash  $zip" | Set-Content -LiteralPath "$zip.sha256" -Encoding ascii
           $out = "artifacts/windows-x64"
           New-Item -ItemType Directory -Force -Path $out | Out-Null
-          Copy-Item build/ci/Release/JO-Launcher.exe $out
+          Copy-Item $zip, "$zip.sha256" $out
           if (Test-Path build/ci/Release/launch_harness.exe) {
             Copy-Item build/ci/Release/launch_harness.exe $out
           }
-          Copy-Item LICENSE, NOTICE, PRIVACY.md $out
           Get-ChildItem $out | Format-Table Name, Length
 
       - uses: actions/upload-artifact@v4
@@ -46,3 +58,15 @@ jobs:
           name: JO-Launcher-windows-x64
           path: artifacts/windows-x64/*
           if-no-files-found: error
+
+      - name: Upload assets to draft GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: .github/release-notes/${{ github.ref_name }}.md
+          draft: true
+          files: |
+            JO-Launcher-${{ github.ref_name }}-windows-x64-portable.zip
+            JO-Launcher-${{ github.ref_name }}-windows-x64-portable.zip.sha256
