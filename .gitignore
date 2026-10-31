@@ -1,47 +1,24 @@
-# 操作系统
-.DS_Store
-Thumbs.db
-desktop.ini
+# Build output
+build/
+dist/
+out/
 
-# 编辑器 / IDE
+# Visual Studio / CMake
+.vs/
+CMakeUserPresets.json
+*.user
+
+# Editors
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.eggs/
-build/
-dist/
-.venv/
-venv/
-.env
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# Node
-node_modules/
-npm-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# 其它
+# Logs
 *.log
-
-# Dart / Flutter
-.dart_tool/
-.flutter-plugins-dependencies
-.pub/
-.pub-cache/
-/coverage/
-**/doc/api/
-**/ios/Flutter/.last_build_id
-*.iml
-migrate_working_dir/
-app.*.symbols
-app.*.map.json
-
-# Linux 桌面端生成物
-linux/flutter/ephemeral/

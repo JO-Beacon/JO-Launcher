@@ -1,67 +1,69 @@
 # JO-Launcher
 
-[![CI](https://github.com/JO-Beacon/JO-Launcher/actions/workflows/build-windows.yml/badge.svg)](https://github.com/JO-Beacon/JO-Launcher/actions/workflows/build-windows.yml)
+A Windows desktop launcher for Minecraft: Java Edition. Linux support is planned.
 
-JO-Launcher is an open-source launcher for Minecraft: Java Edition, focused on launching existing game installations with a clean, responsive desktop experience. Windows is supported today; Linux support is on the roadmap.
+## Requirements
 
-[English](./README.md) · [日本語](./README_ja.md) · [Svenska](./README_sv.md) · [Português (Brasil)](./README_pt_BR.md) · [Español](./README_es.md) · [Français](./README_fr.md) · [Deutsch](./README_de.md) · [Website](https://jo-beacon.github.io/JO-Launcher/) · [Privacy](./PRIVACY.md) · [Apache License 2.0](./LICENSE)
-
-![JO-Launcher](docs/screenshot.png)
-
-> **NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.**
+- Windows 10 or 11, x64
+- A Java runtime for the Minecraft version you want to launch (detected automatically; can be set per version)
+- A Microsoft account that owns Minecraft: Java Edition
+- Your own Azure application (client) ID for sign-in
 
 ## Features
 
-- **Version discovery** — scans `versions/` and recognizes vanilla, Fabric, Quilt, Forge and NeoForge installations.
-- **Version settings** — configure Java, memory limits and JVM arguments per version; settings live in `jolauncher.json` inside the version directory.
-- **Microsoft sign-in** — sign in with a Microsoft account through the device-code flow.
-- **Launch workspace** — choose a version, start the game, follow the live log and stop the process.
-- **Desktop experience** — dark / light / follow-system themes, a draggable sidebar and seven interface languages.
+- Launches Minecraft versions that are already installed on your machine
+- Per-version settings: Java runtime, memory limits, JVM arguments
+- Automatic memory planning based on installed RAM, overridable per version
+- Import a version folder or zip, rename and delete versions
+- Diagnostic log file (Settings → About → Logs) for troubleshooting
+- Per-version game directory: saves, options and mods live inside each version
+  folder, so different versions stay isolated
+- Microsoft sign-in through the device-code flow; set your own Azure application (client) ID in Settings → Account, or through the `JO_MS_CLIENT_ID` / `JOL_MS_CLIENT_ID` environment variable
+- 10 interface languages: English, 简体中文, 繁體中文, 日本語, 한국어, Deutsch, Español, Français, Português, Svenska
+- Dark, light and system-following themes
+- Uses a portable `.minecraft` folder next to the executable, otherwise `%APPDATA%\.minecraft`
 
-## Roadmap
 
-- Version management: install from user-provided local files, import modpacks, delete and rename
-- Linux desktop support
-- Account avatars and account switching
-- Crash diagnostics and recovery
+## Layout
 
-## Contributing
-
-Issues are welcome. Pull requests are **not** accepted and will be closed automatically. See [CONTRIBUTING.md](./CONTRIBUTING.md) before opening an issue.
-
-## Tech stack
-
-Flutter / Dart.
-
-## Building
-
-You need the Flutter SDK. On Windows, Inno Setup is only needed to produce the installer.
-
-Microsoft sign-in requires the client_id of an Azure application. **It is not stored in this repository**; pass it at build time through an environment variable:
-
-```powershell
-$env:JO_MS_CLIENT_ID = "<your client_id>"
-pwsh -ExecutionPolicy Bypass -File scripts\build.ps1
+```text
+core/                 platform-independent C++20 core
+  auth/               Microsoft / Xbox / Minecraft sign-in
+  launch/             version manifests, Java detection, process launch
+  mc/                 version scanning and per-version settings
+  net/                HTTP transport
+platform/win32/       Win32 + Direct2D shell
+tools/                build helpers and binary checks
+third_party/          bundled third-party sources
 ```
 
-To build the app without the installer:
+## Build (Windows)
+
+Requires Visual Studio 2022 or 2026 with the C++ workload (or the matching Build Tools) and CMake 3.25+.
 
 ```powershell
-flutter build windows --release --dart-define=JO_MS_CLIENT_ID=$env:JO_MS_CLIENT_ID
+cmake -S . -B build/native -G "Visual Studio 18 2026" -A x64
+cmake --build build/native --config Release
 ```
 
-The app still builds without `JO_MS_CLIENT_ID`; sign-in is simply unavailable.
+Result:
 
-Linux support is planned. The platform directory has not been generated yet; build instructions will be added once `linux/` exists.
+```text
+build/native/Release/JO-Launcher.exe
+```
+
+The executable is statically linked against the MSVC runtime.
+
+## Status
+
+The Win32 shell is the only implemented UI. The Linux HTTP, secret-storage and process backends exist under `core/platform/`, but the GTK shell has not been started yet.
 
 ## License
 
-[Apache License 2.0](./LICENSE). Redistributions must include [NOTICE](./NOTICE); the third-party license notices in it must not be removed.
+JO-Launcher is licensed under the Apache License 2.0; see [LICENSE](./LICENSE).
+Redistributions must include [NOTICE](./NOTICE) and keep the third-party notices it
+references. Privacy notice: [PRIVACY.md](./PRIVACY.md).
 
-## Third-party components
-
-- Flutter / Dart — BSD-3-Clause
-- Noto Sans SC — SIL Open Font License 1.1
-- Remix Icon — Remix Icon License v1.0
-
-Licenses for the remaining Dart dependencies are available in the app under Settings → About → Licenses.
+Not an official Minecraft product. Not approved by or associated with Mojang or
+Microsoft. Minecraft, Mojang, Microsoft and Xbox are trademarks of Microsoft
+Corporation or its affiliates.

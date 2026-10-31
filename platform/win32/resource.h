@@ -1,0 +1,13 @@
+#pragma once
+
+#define IDI_APP_ICON 1
+#define IDR_FONT_REMIX 200
+#define IDR_FONT_NOTO 201
+
+#define ICON_ROCKET 0xF097
+#define ICON_ARCHIVE 0xF3A8
+#define ICON_SETTINGS 0xF0EE
+#define ICON_USER 0xF264
+#define ICON_REFRESH 0xF064
+#define ICON_ARROW_LEFT 0xEA60
+#define ICON_DOWNLOAD 0xEC5A
