@@ -1,30 +1,30 @@
 # JO-Launcher
 
-A Windows desktop launcher for Minecraft: Java Edition. Linux support is planned.
+一个面向 Minecraft: Java Edition 的 Windows 桌面启动器。Linux 支持已在计划中。
 
-## Requirements
+[English](README.en.md) · [**简体中文**](README.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md) · [Português](README.pt-BR.md) · [Svenska](README.sv.md)
 
-- Windows 10 or 11, x64
-- A Java runtime for the Minecraft version you want to launch (detected automatically; can be set per version)
-- A Microsoft account that owns Minecraft: Java Edition
-- Your own Azure application (client) ID for sign-in
+## 系统要求
 
-## Features
+- Windows 10 或 11，x64
+- 要启动的 Minecraft 版本所需的 Java 运行环境（自动检测，也可按版本手动指定）
+- 拥有 Minecraft: Java Edition 的微软账号
+- 自己的 Azure 应用（客户端）ID，用于登录
 
-- Launches Minecraft versions that are already installed on your machine
-- Per-version settings: Java runtime, memory limits, JVM arguments
-- Automatic memory planning based on installed RAM, overridable per version
-- Import a version folder or zip, rename and delete versions
-- Diagnostic log file (Settings → About → Logs) for troubleshooting
-- Per-version game directory: saves, options and mods live inside each version
-  folder, so different versions stay isolated
-- Microsoft sign-in through the device-code flow; set your own Azure application (client) ID in Settings → Account, or through the `JO_MS_CLIENT_ID` / `JOL_MS_CLIENT_ID` environment variable
-- 10 interface languages: English, 简体中文, 繁體中文, 日本語, 한국어, Deutsch, Español, Français, Português, Svenska
-- Dark, light and system-following themes
-- Uses a portable `.minecraft` folder next to the executable, otherwise `%APPDATA%\.minecraft`
+## 功能
 
+- 启动本机已安装的 Minecraft 版本
+- 按版本设置：Java 运行环境、内存上限、JVM 参数
+- 根据本机物理内存自动规划内存，可按版本覆盖
+- 导入版本文件夹或 zip，重命名、删除版本
+- 诊断日志（设置 → 关于 → 日志），便于排查问题
+- 按版本隔离游戏目录：存档、选项和模组都保存在各自版本目录中，不同版本互不影响
+- 通过设备码流程登录微软账号；可在 设置 → 账号 填写自己的 Azure 应用（客户端）ID，也可使用 `JO_MS_CLIENT_ID` / `JOL_MS_CLIENT_ID` 环境变量
+- 10 种界面语言：English、简体中文、繁體中文、日本語、한국어、Deutsch、Español、Français、Português、Svenska
+- 深色、浅色和跟随系统主题
+- 优先使用 exe 旁的便携 `.minecraft` 目录，否则使用 `%APPDATA%\.minecraft`
 
-## Layout
+## 目录结构
 
 ```text
 core/                 platform-independent C++20 core
@@ -37,33 +37,30 @@ tools/                build helpers and binary checks
 third_party/          bundled third-party sources
 ```
 
-## Build (Windows)
+## 构建（Windows）
 
-Requires Visual Studio 2022 or 2026 with the C++ workload (or the matching Build Tools) and CMake 3.25+.
+需要安装 Visual Studio 2022 或 2026 的 C++ 工作负载（或对应的 Build Tools）以及 CMake 3.25+。
 
 ```powershell
 cmake -S . -B build/native -G "Visual Studio 18 2026" -A x64
 cmake --build build/native --config Release
 ```
 
-Result:
+生成结果：
 
 ```text
 build/native/Release/JO-Launcher.exe
 ```
 
-The executable is statically linked against the MSVC runtime.
+可执行文件静态链接 MSVC 运行库。
 
-## Status
+## 状态
 
-The Win32 shell is the only implemented UI. The Linux HTTP, secret-storage and process backends exist under `core/platform/`, but the GTK shell has not been started yet.
+目前只有 Win32 外壳。Linux 的 HTTP、密钥存储和进程后端已经位于 `core/platform/` 下，但 GTK 外壳尚未开始。
 
-## License
+## 许可证
 
-JO-Launcher is licensed under the Apache License 2.0; see [LICENSE](./LICENSE).
-Redistributions must include [NOTICE](./NOTICE) and keep the third-party notices it
-references. Privacy notice: [PRIVACY.md](./PRIVACY.md).
+JO-Launcher 使用 Apache License 2.0 授权，详见 [LICENSE](./LICENSE)。
+再分发时必须包含 [NOTICE](./NOTICE)，并保留其中引用的第三方声明。隐私说明：[PRIVACY.md](./PRIVACY.md)。
 
-Not an official Minecraft product. Not approved by or associated with Mojang or
-Microsoft. Minecraft, Mojang, Microsoft and Xbox are trademarks of Microsoft
-Corporation or its affiliates.
+非 Minecraft 官方产品，未经 Mojang 或 Microsoft 批准或关联。Minecraft、Mojang、Microsoft 和 Xbox 是 Microsoft Corporation 或其关联公司的商标。
