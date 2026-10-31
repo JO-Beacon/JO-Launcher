@@ -32,7 +32,7 @@ jobs:
           python tools/verify_binary.py
           build/ci/Release/JO-Launcher.exe
 
-      - name: Package portable ZIP
+      - name: Package release ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -40,7 +40,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item build/ci/Release/JO-Launcher.exe $stage
           Copy-Item README.md, LICENSE, NOTICE, PRIVACY.md $stage
-          $zip = "JO-Launcher-${{ github.ref_name }}-windows-x64-portable.zip"
+          $zip = "JO-Launcher-${{ github.ref_name }}-windows-x64.zip"
           if (Test-Path $zip) { Remove-Item $zip }
           Compress-Archive -Path "$stage/*" -DestinationPath $zip
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
@@ -68,5 +68,5 @@ jobs:
           body_path: .github/release-notes/${{ github.ref_name }}.md
           draft: true
           files: |
-            JO-Launcher-${{ github.ref_name }}-windows-x64-portable.zip
-            JO-Launcher-${{ github.ref_name }}-windows-x64-portable.zip.sha256
+            JO-Launcher-${{ github.ref_name }}-windows-x64.zip
+            JO-Launcher-${{ github.ref_name }}-windows-x64.zip.sha256
