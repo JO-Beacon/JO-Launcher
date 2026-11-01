@@ -35,6 +35,8 @@ const wchar_t* english(Text text) {
         case Text::versionLoader: return L"Loader";
         case Text::versionDirectory: return L"Directory";
         case Text::versionOpenFolder: return L"Open folder";
+        case Text::versionFolderMissing:
+            return L"The version folder does not exist. Please choose the game directory again.";
         case Text::javaTitle: return L"Java";
         case Text::javaSource: return L"Source";
         case Text::javaAuto: return L"Auto";
@@ -52,6 +54,10 @@ const wchar_t* english(Text text) {
         case Text::memoryMaximum: return L"Maximum";
         case Text::memoryHint: return L"MB, empty = automatic";
         case Text::jvmTitle: return L"JVM arguments";
+        case Text::cut: return L"Cut";
+        case Text::copy: return L"Copy";
+        case Text::paste: return L"Paste";
+        case Text::selectAll: return L"Select all";
         case Text::save: return L"Save";
         case Text::saved: return L"Saved";
         case Text::settingsTitle: return L"Settings";
@@ -67,6 +73,10 @@ const wchar_t* english(Text text) {
             return L"Follow the system appearance setting";
         case Text::gameDirectoryTitle: return L"Game directory";
         case Text::currentDirectory: return L"Current directory";
+        case Text::gameDirectoryWarning:
+            return L"This folder does not look like a Minecraft game directory "
+                   L"(no versions, libraries, assets or launcher_profiles.json). "
+                   L"Use it anyway?";
         case Text::change: return L"Change";
         case Text::accountTitle: return L"Account";
         case Text::microsoftAccount: return L"Microsoft account";
@@ -236,6 +246,18 @@ const Translation kTranslations[] = {
     {Text::managerTitle, Language::zhCN, L"版本管理"},
     {Text::managerTitle, Language::zhTW, L"版本管理"},
     {Text::managerTitle, Language::ko, L"버전 관리"},
+    {Text::cut, Language::zhCN, L"剪切"},
+    {Text::cut, Language::zhTW, L"剪下"},
+    {Text::cut, Language::ko, L"잘라내기"},
+    {Text::copy, Language::zhCN, L"复制"},
+    {Text::copy, Language::zhTW, L"複製"},
+    {Text::copy, Language::ko, L"복사"},
+    {Text::paste, Language::zhCN, L"粘贴"},
+    {Text::paste, Language::zhTW, L"貼上"},
+    {Text::paste, Language::ko, L"붙여넣기"},
+    {Text::selectAll, Language::zhCN, L"全选"},
+    {Text::selectAll, Language::zhTW, L"全選"},
+    {Text::selectAll, Language::ko, L"모두 선택"},
     {Text::save, Language::zhCN, L"保存"},
     {Text::save, Language::zhTW, L"儲存"},
     {Text::save, Language::ko, L"저장"},
@@ -1287,6 +1309,30 @@ const Translation kTranslations[] = {
     {Text::managerTitle, Language::ja, L"バージョン管理"},
     {Text::managerTitle, Language::ptBR, L"Gerenciar versões"},
     {Text::managerTitle, Language::sv, L"Hantera versioner"},
+    {Text::cut, Language::de, L"Ausschneiden"},
+    {Text::cut, Language::es, L"Cortar"},
+    {Text::cut, Language::fr, L"Couper"},
+    {Text::cut, Language::ja, L"切り取り"},
+    {Text::cut, Language::ptBR, L"Recortar"},
+    {Text::cut, Language::sv, L"Klipp ut"},
+    {Text::copy, Language::de, L"Kopieren"},
+    {Text::copy, Language::es, L"Copiar"},
+    {Text::copy, Language::fr, L"Copier"},
+    {Text::copy, Language::ja, L"コピー"},
+    {Text::copy, Language::ptBR, L"Copiar"},
+    {Text::copy, Language::sv, L"Kopiera"},
+    {Text::paste, Language::de, L"Einfügen"},
+    {Text::paste, Language::es, L"Pegar"},
+    {Text::paste, Language::fr, L"Coller"},
+    {Text::paste, Language::ja, L"貼り付け"},
+    {Text::paste, Language::ptBR, L"Colar"},
+    {Text::paste, Language::sv, L"Klistra in"},
+    {Text::selectAll, Language::de, L"Alles auswählen"},
+    {Text::selectAll, Language::es, L"Seleccionar todo"},
+    {Text::selectAll, Language::fr, L"Tout sélectionner"},
+    {Text::selectAll, Language::ja, L"すべて選択"},
+    {Text::selectAll, Language::ptBR, L"Selecionar tudo"},
+    {Text::selectAll, Language::sv, L"Markera allt"},
     {Text::save, Language::de, L"Speichern"},
     {Text::save, Language::es, L"Guardar"},
     {Text::save, Language::fr, L"Enregistrer"},
@@ -1387,6 +1433,33 @@ const Translation kTranslations[] = {
      L"Excluir a conta e os tokens salvos neste dispositivo? Os arquivos do jogo e as configurações de versão não são afetados."},
     {Text::deleteAccountMessage, Language::sv,
      L"Ta bort det sparade kontot och token från den här enheten? Spelfiler och versionsinställningar påverkas inte."},
+    {Text::versionFolderMissing, Language::zhCN, L"版本目录不存在，请重新选择游戏目录。"},
+    {Text::versionFolderMissing, Language::zhTW, L"版本目錄不存在，請重新選擇遊戲目錄。"},
+    {Text::versionFolderMissing, Language::ko, L"버전 폴더가 존재하지 않습니다. 게임 디렉터리를 다시 선택하세요."},
+    {Text::versionFolderMissing, Language::ja, L"バージョンフォルダーが存在しません。ゲームディレクトリを選択し直してください。"},
+    {Text::versionFolderMissing, Language::de, L"Der Versionsordner existiert nicht. Bitte wählen Sie das Spielverzeichnis erneut."},
+    {Text::versionFolderMissing, Language::es, L"La carpeta de la versión no existe. Vuelve a elegir el directorio del juego."},
+    {Text::versionFolderMissing, Language::fr, L"Le dossier de la version est introuvable. Choisissez à nouveau le dossier du jeu."},
+    {Text::versionFolderMissing, Language::ptBR, L"A pasta da versão não existe. Escolha o diretório do jogo novamente."},
+    {Text::versionFolderMissing, Language::sv, L"Versionsmappen finns inte. Välj spelkatalogen igen."},
+    {Text::gameDirectoryWarning, Language::zhCN,
+     L"这个目录不像 Minecraft 游戏目录（没有 versions、libraries、assets 或 launcher_profiles.json）。仍要使用吗？"},
+    {Text::gameDirectoryWarning, Language::zhTW,
+     L"這個目錄不像 Minecraft 遊戲目錄（沒有 versions、libraries、assets 或 launcher_profiles.json）。仍要使用嗎？"},
+    {Text::gameDirectoryWarning, Language::ko,
+     L"이 폴더는 Minecraft 게임 디렉터리처럼 보이지 않습니다(versions, libraries, assets 또는 launcher_profiles.json 없음). 계속 사용할까요?"},
+    {Text::gameDirectoryWarning, Language::ja,
+     L"このフォルダーは Minecraft のゲームディレクトリではないようです（versions、libraries、assets、launcher_profiles.json がありません）。使用しますか？"},
+    {Text::gameDirectoryWarning, Language::de,
+     L"Dieser Ordner sieht nicht wie ein Minecraft-Spielverzeichnis aus (keine versions, libraries, assets oder launcher_profiles.json). Trotzdem verwenden?"},
+    {Text::gameDirectoryWarning, Language::es,
+     L"Esta carpeta no parece un directorio de Minecraft (sin versions, libraries, assets ni launcher_profiles.json). ¿Usarla igualmente?"},
+    {Text::gameDirectoryWarning, Language::fr,
+     L"Ce dossier ne ressemble pas à un dossier de jeu Minecraft (pas de versions, libraries, assets ou launcher_profiles.json). L'utiliser quand même ?"},
+    {Text::gameDirectoryWarning, Language::ptBR,
+     L"Esta pasta não parece um diretório do Minecraft (sem versions, libraries, assets ou launcher_profiles.json). Usar mesmo assim?"},
+    {Text::gameDirectoryWarning, Language::sv,
+     L"Den här mappen ser inte ut som en Minecraft-spelkatalog (saknar versions, libraries, assets eller launcher_profiles.json). Använd ändå?"},
 };
 
 const wchar_t* language_name_impl(Language language) {

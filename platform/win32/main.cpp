@@ -1,11 +1,13 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <dwmapi.h>
+#include <imm.h>
 
 #include "app.hpp"
 #include "product_info.hpp"
 #include "log.hpp"
 #include "platform/paths.hpp"
+#include "platform/text.hpp"
 #include "auth/client_id.hpp"
 #include "resource.h"
 
@@ -68,6 +70,21 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wparam,
                                    GET_Y_LPARAM(lparam));
             }
             return 0;
+        case WM_RBUTTONUP:
+            if (g_app != nullptr) {
+                g_app->rightClick(window, GET_X_LPARAM(lparam),
+                                  GET_Y_LPARAM(lparam));
+            }
+            return 0;
+        case WM_MBUTTONDOWN:
+            if (g_app != nullptr) {
+                g_app->middleDown(window, GET_X_LPARAM(lparam),
+                                  GET_Y_LPARAM(lparam));
+            }
+            return 0;
+        case WM_MBUTTONUP:
+            if (g_app != nullptr) g_app->middleUp(window);
+            return 0;
         case WM_MOUSEMOVE:
             if (g_app != nullptr) {
                 if (!g_tracking_mouse) {
@@ -91,6 +108,20 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wparam,
             if (g_app != nullptr) {
                 g_app->key_char(window, static_cast<wchar_t>(wparam));
             }
+            return 0;
+        case WM_IME_STARTCOMPOSITION:
+            if (g_app != nullptr) g_app->ime_start(window);
+            return 0;
+        case WM_IME_COMPOSITION:
+            if (g_app != nullptr) {
+                g_app->ime_composition(window, static_cast<LPARAM>(lparam));
+            }
+            return 0;
+        case WM_IME_ENDCOMPOSITION:
+            if (g_app != nullptr) g_app->ime_end(window);
+            return 0;
+        case WM_IME_CHAR:
+            // The result string is inserted from WM_IME_COMPOSITION.
             return 0;
         case WM_KEYDOWN:
             if (g_app != nullptr) {
@@ -163,6 +194,10 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wparam,
                 g_app->animate_transitions(window);
                 return 0;
             }
+            if (wparam == 7 && g_app != nullptr) {
+                g_app->autoscrollTick(window);
+                return 0;
+            }
             if (wparam == 4 && g_app != nullptr) {
                 g_app->animate_theme(window);
                 return 0;
@@ -214,7 +249,7 @@ LONG WINAPI unhandled_exception(EXCEPTION_POINTERS* info) {
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show_command) {
     jol::log::init(jol::platform::local_app_data() / L"JO-Beacon" /
                    jol::kDataDirectoryName / L"logs");
-    jol::log::info("startup", "JO-Launcher 0.1.0");
+    jol::log::info("startup", jol::platform::narrow(std::wstring(jol::kProductName)) + " " + jol::kVersion);
     SetUnhandledExceptionFilter(unhandled_exception);
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -225,7 +260,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show_command) {
     const wchar_t* class_name = L"JOLauncherNativeWindow";
     WNDCLASSEXW window_class{};
     window_class.cbSize = sizeof(window_class);
-    window_class.style = CS_DBLCLKS;
+    window_class.style = CS_DBLCLKS | CS_IME;
     window_class.lpfnWndProc = windowProc;
     window_class.hInstance = instance;
     window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
@@ -245,6 +280,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show_command) {
         CW_USEDEFAULT, frame.right - frame.left, frame.bottom - frame.top,
         nullptr, nullptr, instance, nullptr);
     if (window == nullptr) return 1;
+    ImmAssociateContextEx(window, nullptr, IACE_DEFAULT);
 
     app.apply_window_theme(window);
     ShowWindow(window, show_command);

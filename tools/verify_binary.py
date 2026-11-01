@@ -18,6 +18,7 @@ EXPECTED_IMPORTS = {
     "crypt32.dll",
     "d2d1.dll",
     "dwrite.dll",
+    "imm32.dll",
     "dwmapi.dll",
     "kernel32.dll",
     "ole32.dll",

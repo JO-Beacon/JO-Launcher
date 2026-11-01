@@ -22,8 +22,15 @@ This product includes software and assets developed by third parties:
   platform/win32/remixicon.ttf
   Full license text: third_party/licenses/RemixIcon-License-1.0.txt
 
+- Chromium panning cursors (https://github.com/chromium/chromium/tree/main/ui/resources/cursors)
+  pan_middle_vertical.cur, pan_north.cur, pan_south.cur — BSD 3-Clause,
+  Copyright 2015 The Chromium Authors.
+  platform/win32/cursors/
+  Full license text: third_party/licenses/chromium-BSD-3-Clause.txt
+
+
 The launcher links only Windows system libraries (WinHTTP, DPAPI via
-Crypt32/Advapi32, Direct2D, DirectWrite, DWM, Shell32, Ole32, User32,
+Crypt32/Advapi32, Direct2D, DirectWrite, DWM, Imm32, Shell32, Ole32, User32,
 Kernel32 and the C runtime) besides the components listed above.
 
 Minecraft, Mojang, Microsoft and Xbox are trademarks of

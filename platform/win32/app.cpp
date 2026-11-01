@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <cwctype>
 #include <string>
@@ -9,6 +10,7 @@
 #include <shellapi.h>
 #include <shobjidl.h>
 #include <dwmapi.h>
+#include <imm.h>
 
 #include "product_info.hpp"
 #include "log.hpp"
@@ -153,8 +155,8 @@ int contentLeft(int rail_width, UINT dpi) {
 
 int contentRight(const RECT& client, int rail_width, UINT dpi) {
     const int left = contentLeft(rail_width, dpi);
-    return left + std::min(s(760, dpi),
-                           static_cast<int>(client.right) - left - s(32, dpi));
+    return left + std::max(
+                      0, static_cast<int>(client.right) - left - s(32, dpi));
 }
 
 bool hit(int x, int y, const RECT& rect) {
@@ -264,6 +266,40 @@ std::filesystem::path chooseJavaFile(HWND window, Language language) {
     return path;
 }
 
+bool looksLikeMinecraftDirectory(const std::filesystem::path& path) {
+    std::error_code ec;
+    if (!std::filesystem::is_directory(path, ec)) return false;
+    return std::filesystem::is_directory(path / L"versions", ec) ||
+           std::filesystem::is_directory(path / L"libraries", ec) ||
+           std::filesystem::is_directory(path / L"assets", ec) ||
+           std::filesystem::is_regular_file(path / L"launcher_profiles.json",
+                                            ec);
+}
+
+std::filesystem::path normalizeGameDirectory(
+    const std::filesystem::path& selected) {
+    std::error_code ec;
+    if (!std::filesystem::is_directory(selected, ec)) return {};
+    const std::filesystem::path parent = selected.parent_path();
+    if (selected.filename() == L"versions" &&
+        looksLikeMinecraftDirectory(parent)) {
+        return parent;
+    }
+    if (parent.filename() == L"versions" &&
+        looksLikeMinecraftDirectory(parent.parent_path())) {
+        return parent.parent_path();
+    }
+    return selected;
+}
+
+bool confirmGameDirectory(HWND window, const std::filesystem::path& path,
+                          Language language) {
+    if (looksLikeMinecraftDirectory(path)) return true;
+    return MessageBoxW(window, tr(language, Text::gameDirectoryWarning),
+                       tr(language, Text::gameDirectoryTitle),
+                       MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) == IDYES;
+}
+
 }  // namespace
 
 std::mutex App::payload_mutex_;
@@ -321,6 +357,7 @@ App::App() {
                     ? system_language()
                     : language_from_code(global_settings_.language);
     client_id_text_ = widen(global_settings_.client_id);
+    reset_input(6);
     if (follow_system_) dark_mode_ = systemPrefersDark();
     applyPalette(dark_mode_);
     if (global_settings_.privacy_accepted &&
@@ -459,6 +496,7 @@ void App::handle_manage_import(ManageImportResult* result) {
         scan();
         current_version_ = result->name;
         rename_text_ = widen(result->name);
+        reset_input(4);
         load_version_config();
         save_settings();
         manage_error_.clear();
@@ -618,6 +656,7 @@ void App::handle_java_detection(JavaDetectResult* result) {
     java_scanned_ = true;
     java_runtimes_ = std::move(result->runtimes);
     delete result;
+    for (int field = 0; field <= 3; ++field) reset_input(field);
     refresh_java_status();
     validate_manual_java(false);
 }
@@ -842,6 +881,7 @@ void App::set_settings_subpage(HWND window, SettingsSubpage page) {
 void App::change_page(HWND window, int page_index) {
     const Page next = static_cast<Page>(page_index);
     if (next == page_) return;
+    stopAutoscroll(window);
     scroll_ = 0;
     scroll_max_ = 0;
     manage_rename_dialog_ = false;
@@ -944,6 +984,7 @@ void App::load_version_config() {
         jvm_text_ = widen(config_.jvm_args);
         break;
     }
+    for (int field = 0; field <= 3; ++field) reset_input(field);
     refresh_java_status();
     validate_manual_java(false);
 }
@@ -1012,47 +1053,537 @@ void App::save_version_config() {
     }
 }
 
-void App::key_char(HWND window, wchar_t character) {
-    if (focus_field_ < 0 || character < L' ') return;
-    if (focus_field_ == 6) {
-        client_id_text_.push_back(character);
-        InvalidateRect(window, nullptr, FALSE);
-        return;
+Microsoft::WRL::ComPtr<IDWriteTextLayout> App::make_input_layout(
+    const std::wstring& text, int dpi) const {
+    if (dwrite_ == nullptr) return {};
+    Microsoft::WRL::ComPtr<IDWriteTextFormat> format;
+    const wchar_t* family = text_font_collection_ != nullptr
+                               ? L"Noto Sans SC"
+                               : L"Segoe UI";
+    if (FAILED(dwrite_->CreateTextFormat(
+            family, text_font_collection_.Get(), DWRITE_FONT_WEIGHT_NORMAL,
+            DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
+            static_cast<float>(s(12, dpi)), L"en-us",
+            format.GetAddressOf()))) {
+        return {};
     }
-    bool needs_digit = (focus_field_ == 1 || focus_field_ == 2);
-    if (needs_digit && !std::iswdigit(character)) return;
-    std::wstring* target = nullptr;
-    switch (focus_field_) {
-        case 0: target = &java_text_; break;
-        case 1: target = &min_memory_text_; break;
-        case 2: target = &max_memory_text_; break;
-        case 3: target = &jvm_text_; break;
-        case 4: target = &rename_text_; break;
-        case 6: target = &client_id_text_; break;
-        default: return;
+    if (text_font_fallback_ != nullptr) {
+        Microsoft::WRL::ComPtr<IDWriteTextFormat1> format1;
+        if (SUCCEEDED(format.As(&format1))) {
+            format1->SetFontFallback(text_font_fallback_.Get());
+        }
     }
-    target->push_back(character);
-    config_saved_ = false;
-    config_error_.clear();
-    if (focus_field_ == 0) validate_manual_java(false);
+    format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+    format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+
+    Microsoft::WRL::ComPtr<IDWriteTextLayout> layout;
+    if (FAILED(dwrite_->CreateTextLayout(
+            text.c_str(), static_cast<UINT32>(text.size()), format.Get(),
+            100000.0f, 1000.0f, layout.GetAddressOf()))) {
+        return {};
+    }
+    return layout;
+}
+
+std::wstring* App::input_text(int field_id) {
+    switch (field_id) {
+        case 0: return &java_text_;
+        case 1: return &min_memory_text_;
+        case 2: return &max_memory_text_;
+        case 3: return &jvm_text_;
+        case 4: return &rename_text_;
+        case 6: return &client_id_text_;
+        default: return nullptr;
+    }
+}
+
+App::InputState& App::input_state(int field_id) {
+    InputState& state = input_states_[field_id];
+    const std::wstring* text = input_text(field_id);
+    const std::size_t length = text != nullptr ? text->size() : 0;
+    state.caret = std::min(state.caret, length);
+    state.anchor = std::min(state.anchor, length);
+    return state;
+}
+
+void App::reset_input(int field_id) {
+    const std::wstring* text = input_text(field_id);
+    InputState& state = input_states_[field_id];
+    state.caret = state.anchor = text != nullptr ? text->size() : 0;
+    state.scroll = 0.0f;
+}
+
+void App::focus_input(HWND window, int field_id, bool select_all) {
+    if (field_id < 0 || input_text(field_id) == nullptr) return;
+    if (focus_field_ != field_id) {
+        if (focus_field_ == 6) commit_client_id();
+        focus_field_ = field_id;
+        InputState& state = input_states_[field_id];
+        const std::size_t length = input_text(field_id)->size();
+        if (select_all) {
+            state.anchor = 0;
+            state.caret = length;
+        } else {
+            state.anchor = state.caret = length;
+        }
+        state.scroll = 0.0f;
+    }
+    if (page_ == Page::settings &&
+        settings_subpage_ == SettingsSubpage::none) {
+        const auto rect_it = input_rects_.find(field_id);
+        if (rect_it != input_rects_.end()) {
+            const int dpi = static_cast<int>(GetDpiForWindow(window));
+            RECT client{};
+            GetClientRect(window, &client);
+            const int top = s(112, dpi);
+            const int bottom = static_cast<int>(client.bottom);
+            int delta = 0;
+            if (rect_it->second.top < top) {
+                delta = rect_it->second.top - top;
+            } else if (rect_it->second.bottom > bottom) {
+                delta = rect_it->second.bottom - bottom;
+            }
+            if (delta != 0) {
+                scroll_ = std::clamp(scroll_ + delta, 0, scroll_max_);
+                InvalidateRect(window, nullptr, FALSE);
+            }
+        }
+    }
+    update_ime_position(window);
     InvalidateRect(window, nullptr, FALSE);
 }
 
-void App::key_down(HWND window, int key) {
-    if (key == VK_TAB && focus_field_ == 6) {
-        focus_field_ = -1;
-        InvalidateRect(window, nullptr, FALSE);
+void App::input_set_caret(HWND window, int field_id, std::size_t caret,
+                          bool extend) {
+    InputState& state = input_state(field_id);
+    state.caret = std::min(caret, input_text(field_id)->size());
+    if (!extend) state.anchor = state.caret;
+    update_ime_position(window);
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+void App::input_select_word(HWND window, int field_id, std::size_t index) {
+    const std::wstring* text = input_text(field_id);
+    if (text == nullptr) return;
+    auto is_word = [](wchar_t ch) {
+        return std::iswalnum(static_cast<wint_t>(ch)) != 0 || ch == L'_';
+    };
+    std::size_t start = std::min(index, text->size());
+    std::size_t end = start;
+    while (start > 0 && is_word((*text)[start - 1])) --start;
+    while (end < text->size() && is_word((*text)[end])) ++end;
+    InputState& state = input_state(field_id);
+    state.anchor = start;
+    state.caret = end;
+    update_ime_position(window);
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+bool App::input_has_selection(int field_id) const {
+    const auto it = input_states_.find(field_id);
+    if (it == input_states_.end()) return false;
+    return it->second.caret != it->second.anchor;
+}
+
+void App::input_copy(int field_id) {
+    const std::wstring* text = input_text(field_id);
+    const auto it = input_states_.find(field_id);
+    if (text == nullptr || it == input_states_.end()) return;
+    const std::size_t low = std::min(it->second.caret, it->second.anchor);
+    const std::size_t high = std::max(it->second.caret, it->second.anchor);
+    if (high > low) set_clipboard_text(text->substr(low, high - low));
+}
+
+void App::input_cut(HWND window, int field_id) {
+    std::wstring* text = input_text(field_id);
+    if (text == nullptr) return;
+    InputState& state = input_state(field_id);
+    const std::size_t low = std::min(state.caret, state.anchor);
+    const std::size_t high = std::max(state.caret, state.anchor);
+    if (high <= low) return;
+    set_clipboard_text(text->substr(low, high - low));
+    text->erase(low, high - low);
+    state.caret = state.anchor = low;
+    input_after_change(window, field_id);
+}
+
+void App::input_select_all(HWND window, int field_id) {
+    const std::wstring* text = input_text(field_id);
+    if (text == nullptr) return;
+    InputState& state = input_state(field_id);
+    state.anchor = 0;
+    state.caret = text->size();
+    update_ime_position(window);
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+std::size_t App::input_index_at(int field_id, int x, int dpi) {
+    const auto rect_it = input_rects_.find(field_id);
+    const std::wstring* text = input_text(field_id);
+    if (rect_it == input_rects_.end() || text == nullptr) return 0;
+    const auto layout = make_input_layout(*text, dpi);
+    if (!layout) return 0;
+    const RECT& rect = rect_it->second;
+    const auto state_it = input_states_.find(field_id);
+    const float scroll = state_it != input_states_.end()
+                             ? state_it->second.scroll
+                             : 0.0f;
+    const float local_x = static_cast<float>(x - (rect.left + s(10, dpi))) +
+                          scroll;
+    const float local_y = 0.0f;
+    BOOL trailing = FALSE;
+    BOOL inside = FALSE;
+    DWRITE_HIT_TEST_METRICS metrics{};
+    if (FAILED(layout->HitTestPoint(local_x, local_y, &trailing, &inside,
+                                    &metrics))) {
+        return 0;
+    }
+    return metrics.textPosition + (trailing != FALSE ? metrics.length : 0);
+}
+
+bool App::input_mouse(HWND window, int field_id, int x, int /*y*/, bool extend) {
+    if (input_text(field_id) == nullptr) return false;
+    focus_input(window, field_id, false);
+    const int dpi = static_cast<int>(GetDpiForWindow(window));
+    input_set_caret(window, field_id, input_index_at(field_id, x, dpi), extend);
+    return true;
+}
+
+int App::input_at(int x, int y) const {
+    for (const auto& [field_id, rect] : input_rects_) {
+        if (hit(x, y, rect)) return field_id;
+    }
+    return -1;
+}
+
+std::wstring App::clipboard_text() const {
+    std::wstring result;
+    if (OpenClipboard(nullptr) == FALSE) return result;
+    HANDLE handle = GetClipboardData(CF_UNICODETEXT);
+    if (handle != nullptr) {
+        const auto* data = static_cast<const wchar_t*>(GlobalLock(handle));
+        if (data != nullptr) {
+            result.assign(data);
+            GlobalUnlock(handle);
+        }
+    }
+    CloseClipboard();
+    return result;
+}
+
+bool App::set_clipboard_text(const std::wstring& text) const {
+    if (OpenClipboard(nullptr) == FALSE) return false;
+    EmptyClipboard();
+    const std::size_t bytes = (text.size() + 1) * sizeof(wchar_t);
+    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, bytes);
+    if (memory == nullptr) {
+        CloseClipboard();
+        return false;
+    }
+    void* data = GlobalLock(memory);
+    if (data == nullptr) {
+        GlobalFree(memory);
+        CloseClipboard();
+        return false;
+    }
+    std::memcpy(data, text.c_str(), bytes);
+    GlobalUnlock(memory);
+    if (SetClipboardData(CF_UNICODETEXT, memory) == nullptr) {
+        GlobalFree(memory);
+        CloseClipboard();
+        return false;
+    }
+    CloseClipboard();
+    return true;
+}
+
+bool App::input_insert(HWND window, int field_id,
+                       const std::wstring& value) {
+    std::wstring* text = input_text(field_id);
+    if (text == nullptr) return false;
+
+    std::wstring filtered;
+    for (wchar_t ch : value) {
+        if (ch == L'\r' || ch == L'\n' || ch == L'\t') {
+            filtered.push_back(L' ');
+            continue;
+        }
+        if (ch < L' ') continue;
+        if ((field_id == 1 || field_id == 2 || field_id == 5) &&
+            std::iswdigit(static_cast<wint_t>(ch)) == 0) {
+            continue;
+        }
+        filtered.push_back(ch);
+    }
+    if (filtered.empty()) return false;
+
+    std::size_t limit = 4096;
+    if (field_id == 1 || field_id == 2) limit = 8;
+    if (field_id == 4) limit = 128;
+    if (field_id == 5) limit = 2;
+    if (field_id == 6) limit = 128;
+    if (field_id == 7) limit = 256;
+
+    InputState& state = input_state(field_id);
+    const std::size_t low = std::min(state.caret, state.anchor);
+    const std::size_t high = std::max(state.caret, state.anchor);
+    if (high > low) text->erase(low, high - low);
+    if (text->size() >= limit) return false;
+    if (filtered.size() > limit - text->size()) {
+        filtered.resize(limit - text->size());
+    }
+    text->insert(low, filtered);
+    state.caret = state.anchor = low + filtered.size();
+    input_after_change(window, field_id);
+    return true;
+}
+
+bool App::input_char(HWND window, int field_id, wchar_t character) {
+    if (character < L' ' || input_text(field_id) == nullptr) return false;
+    return input_insert(window, field_id, std::wstring(1, character));
+}
+
+void App::input_after_change(HWND window, int field_id) {
+    config_saved_ = false;
+    config_error_.clear();
+    if (field_id == 0) validate_manual_java(false);
+    if (field_id == 5) {
+    }
+    update_ime_position(window);
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+bool App::input_key(HWND window, int field_id, int key) {
+    std::wstring* text = input_text(field_id);
+    if (text == nullptr) return false;
+    InputState& state = input_state(field_id);
+    const bool control = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+    const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+
+    auto is_word = [](wchar_t ch) {
+        return std::iswalnum(static_cast<wint_t>(ch)) != 0 || ch == L'_';
+    };
+    auto word_left = [&](std::size_t position) {
+        while (position > 0 && !is_word((*text)[position - 1])) --position;
+        while (position > 0 && is_word((*text)[position - 1])) --position;
+        return position;
+    };
+    auto word_right = [&](std::size_t position) {
+        while (position < text->size() && !is_word((*text)[position]))
+            ++position;
+        while (position < text->size() && is_word((*text)[position]))
+            ++position;
+        return position;
+    };
+    auto erase_selection = [&]() {
+        const std::size_t low = std::min(state.caret, state.anchor);
+        const std::size_t high = std::max(state.caret, state.anchor);
+        if (high <= low) return false;
+        text->erase(low, high - low);
+        state.caret = state.anchor = low;
+        return true;
+    };
+
+    switch (key) {
+        case VK_LEFT:
+        case VK_RIGHT: {
+            std::size_t caret = state.caret;
+            if (control) {
+                caret = key == VK_LEFT ? word_left(caret) : word_right(caret);
+            } else if (shift) {
+                caret = key == VK_LEFT
+                            ? (caret > 0 ? caret - 1 : 0)
+                            : std::min(caret + 1, text->size());
+            } else if (state.caret != state.anchor) {
+                caret = key == VK_LEFT
+                            ? std::min(state.caret, state.anchor)
+                            : std::max(state.caret, state.anchor);
+            } else {
+                caret = key == VK_LEFT
+                            ? (caret > 0 ? caret - 1 : 0)
+                            : std::min(caret + 1, text->size());
+            }
+            input_set_caret(window, field_id, caret, shift);
+            return true;
+        }
+        case VK_HOME:
+        case VK_END:
+            input_set_caret(window, field_id,
+                            key == VK_HOME ? 0 : text->size(), shift);
+            return true;
+        case VK_UP:
+        case VK_DOWN:
+            input_set_caret(window, field_id,
+                            key == VK_UP ? 0 : text->size(), shift);
+            return true;
+        case VK_BACK: {
+            bool changed = erase_selection();
+            if (!changed && state.caret > 0) {
+                const std::size_t from =
+                    control ? word_left(state.caret) : state.caret - 1;
+                text->erase(from, state.caret - from);
+                state.caret = state.anchor = from;
+                changed = true;
+            }
+            if (changed) input_after_change(window, field_id);
+            return true;
+        }
+        case VK_DELETE: {
+            bool changed = erase_selection();
+            if (!changed && state.caret < text->size()) {
+                const std::size_t to =
+                    control ? word_right(state.caret) : state.caret + 1;
+                text->erase(state.caret, to - state.caret);
+                changed = true;
+            }
+            if (changed) input_after_change(window, field_id);
+            return true;
+        }
+        case 'A':
+        case 'C':
+        case 'X':
+        case 'V':
+            if (!control) return false;
+            if (key == 'A') {
+                state.anchor = 0;
+                state.caret = text->size();
+                update_ime_position(window);
+                InvalidateRect(window, nullptr, FALSE);
+                return true;
+            }
+            if (key == 'V') {
+                const std::wstring pasted = clipboard_text();
+                if (!pasted.empty()) input_insert(window, field_id, pasted);
+                return true;
+            }
+            if (state.caret == state.anchor) return true;
+            {
+                const std::size_t low = std::min(state.caret, state.anchor);
+                const std::size_t high = std::max(state.caret, state.anchor);
+                set_clipboard_text(text->substr(low, high - low));
+                if (key == 'X') {
+                    text->erase(low, high - low);
+                    state.caret = state.anchor = low;
+                    input_after_change(window, field_id);
+                }
+            }
+            return true;
+        default:
+            return false;
+    }
+}
+
+void App::update_ime_position(HWND window) {
+    if (focus_field_ < 0) return;
+    const auto rect_it = input_rects_.find(focus_field_);
+    const std::wstring* text = input_text(focus_field_);
+    if (rect_it == input_rects_.end() || text == nullptr) return;
+    const int dpi = static_cast<int>(GetDpiForWindow(window));
+    const auto layout = make_input_layout(*text, dpi);
+    if (!layout) return;
+    InputState& state = input_state(focus_field_);
+    float caret_x = 0.0f;
+    float caret_y = 0.0f;
+    DWRITE_HIT_TEST_METRICS metrics{};
+    if (FAILED(layout->HitTestTextPosition(
+            static_cast<UINT32>(state.caret), FALSE, &caret_x, &caret_y,
+            &metrics))) {
         return;
     }
+    POINT point{rect_it->second.left + s(10, dpi) +
+                    static_cast<int>(caret_x - state.scroll),
+                rect_it->second.top + s(6, dpi)};
+    ClientToScreen(window, &point);
+    HIMC context = ImmGetContext(window);
+    if (context == nullptr) return;
+    COMPOSITIONFORM composition{};
+    composition.dwStyle = CFS_POINT;
+    composition.ptCurrentPos = point;
+    ImmSetCompositionWindow(context, &composition);
+    CANDIDATEFORM candidate{};
+    candidate.dwStyle = CFS_CANDIDATEPOS;
+    candidate.ptCurrentPos = point;
+    ImmSetCandidateWindow(context, &candidate);
+    LOGFONTW font{};
+    font.lfHeight = -s(12, dpi);
+    font.lfCharSet = DEFAULT_CHARSET;
+    wcscpy_s(font.lfFaceName, L"Noto Sans SC");
+    ImmSetCompositionFontW(context, &font);
+    ImmReleaseContext(window, context);
+}
+
+void App::ime_start(HWND window) { update_ime_position(window); }
+
+void App::ime_composition(HWND window, LPARAM flags) {
+    if (focus_field_ < 0) return;
+    HIMC context = ImmGetContext(window);
+    if (context == nullptr) return;
+    if ((flags & GCS_RESULTSTR) != 0) {
+        const LONG bytes =
+            ImmGetCompositionStringW(context, GCS_RESULTSTR, nullptr, 0);
+        if (bytes > 0) {
+            std::wstring result(static_cast<std::size_t>(bytes) / sizeof(wchar_t),
+                                L'\0');
+            const LONG copied = ImmGetCompositionStringW(
+                context, GCS_RESULTSTR, result.data(), bytes);
+            if (copied > 0) {
+                result.resize(static_cast<std::size_t>(copied) /
+                              sizeof(wchar_t));
+                input_insert(window, focus_field_, result);
+            }
+        }
+    }
+    ImmReleaseContext(window, context);
+    update_ime_position(window);
+}
+
+void App::ime_end(HWND window) { update_ime_position(window); }
+
+void App::key_char(HWND window, wchar_t character) {
+    if (focus_field_ < 0) return;
+    input_char(window, focus_field_, character);
+}
+
+void App::key_down(HWND window, int key) {
+    if (autoscroll_active_ && key == VK_ESCAPE) {
+        stopAutoscroll(window);
+        return;
+    }
+    if (focus_field_ >= 0 && input_key(window, focus_field_, key)) return;
+
     if (key == VK_TAB) {
+        std::vector<int> order;
+        if (page_ == Page::settings && settings_subpage_ ==
+                                             SettingsSubpage::none) {
+            if (manual_java_) order.push_back(0);
+            order.push_back(1);
+            order.push_back(2);
+            order.push_back(3);
+            order.push_back(6);
+        } else if (page_ == Page::versions && manage_rename_dialog_) {
+            order.push_back(4);
+        }
+        if (order.empty()) {
+            focus_field_ = -1;
+            InvalidateRect(window, nullptr, FALSE);
+            return;
+        }
         const bool backwards = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-        const int count =
-            (page_ == Page::versions && manage_open_) ? 5 : 4;
-        focus_field_ = focus_field_ < 0
-                           ? 0
-                           : (focus_field_ + (backwards ? count - 1 : 1)) %
-                                 count;
-        InvalidateRect(window, nullptr, FALSE);
+        int position = -1;
+        for (std::size_t i = 0; i < order.size(); ++i) {
+            if (order[i] == focus_field_) {
+                position = static_cast<int>(i);
+                break;
+            }
+        }
+        if (position < 0) {
+            position = backwards ? static_cast<int>(order.size()) - 1 : 0;
+        } else {
+            position = (position + (backwards ? -1 : 1) +
+                        static_cast<int>(order.size())) %
+                       static_cast<int>(order.size());
+        }
+        focus_input(window, order[static_cast<std::size_t>(position)], false);
         return;
     }
     if (key == VK_ESCAPE) {
@@ -1063,51 +1594,110 @@ void App::key_down(HWND window, int key) {
     if (key == VK_RETURN) {
         if (manage_rename_dialog_ && focus_field_ == 4) {
             commit_manage_rename();
+            reset_input(4);
             InvalidateRect(window, nullptr, FALSE);
             return;
         }
         if (focus_field_ == 6) {
-            global_settings_.client_id = narrow(trim(client_id_text_));
-            client_id_text_ = widen(global_settings_.client_id);
-            jol::writeGlobalSettings(global_settings_);
+            commit_client_id();
             focus_field_ = -1;
-            jol::log::info("settings", "client id updated");
             InvalidateRect(window, nullptr, FALSE);
             return;
         }
         save_version_config();
         InvalidateRect(window, nullptr, FALSE);
-        return;
     }
-    if (key != VK_BACK || focus_field_ < 0) return;
-    std::wstring* target = nullptr;
-    switch (focus_field_) {
-        case 0: target = &java_text_; break;
-        case 1: target = &min_memory_text_; break;
-        case 2: target = &max_memory_text_; break;
-        case 3: target = &jvm_text_; break;
-        case 4: target = &rename_text_; break;
-        default: return;
-    }
-    if (!target->empty()) target->pop_back();
-    config_saved_ = false;
-    config_error_.clear();
-    if (focus_field_ == 0) validate_manual_java(false);
-    InvalidateRect(window, nullptr, FALSE);
 }
 
 void App::paint_input(int x, int y, int width, int height,
-                      const std::wstring& text, bool focused, int dpi) {
+                      const std::wstring& text, bool focused, int dpi,
+                      int field_id) {
     const D2D1_RECT_F area = rect(x, y, x + width, y + height);
     fill_rect(area, kBg);
     if (brush_ != nullptr) {
         brush_->SetColor(color(focused ? kAccent : kBorder));
         target_->DrawRectangle(area, brush_.Get(), 1.0f);
     }
-    draw_text(text, rect(x + s(10, dpi), y, x + width - s(8, dpi),
-                         y + height),
-              s(12, dpi), kText, DWRITE_FONT_WEIGHT_NORMAL,
-              DWRITE_TEXT_ALIGNMENT_LEADING);
+    if (field_id >= 0 && target_ != nullptr) {
+        D2D1_MATRIX_3X2_F transform{};
+        target_->GetTransform(&transform);
+        input_rects_[field_id] = RECT{
+            x + static_cast<int>(transform.dx),
+            y + static_cast<int>(transform.dy),
+            x + width + static_cast<int>(transform.dx),
+            y + height + static_cast<int>(transform.dy)};
+    }
+
+    const RECT inner{x + s(10, dpi), y + s(3, dpi),
+                     x + width - s(8, dpi), y + height - s(3, dpi)};
+    const float inner_width = static_cast<float>(inner.right - inner.left);
+    const auto layout = make_input_layout(text, dpi);
+    if (!layout) {
+        draw_text(text, rect(inner.left, y, inner.right, y + height),
+                  s(12, dpi), kText, DWRITE_FONT_WEIGHT_NORMAL,
+                  DWRITE_TEXT_ALIGNMENT_LEADING);
+        return;
+    }
+
+    InputState& state = input_state(field_id);
+    const auto x_at = [&](std::size_t position) {
+        float px = 0.0f;
+        float py = 0.0f;
+        DWRITE_HIT_TEST_METRICS metrics{};
+        if (FAILED(layout->HitTestTextPosition(
+                static_cast<UINT32>(position), FALSE, &px, &py,
+                &metrics))) {
+            return 0.0f;
+        }
+        return px;
+    };
+    const float caret_x = x_at(state.caret);
+    const float anchor_x = x_at(state.anchor);
+    DWRITE_TEXT_METRICS metrics{};
+    layout->GetMetrics(&metrics);
+    const float max_scroll = std::max(0.0f, metrics.width - inner_width);
+    if (focused) {
+        if (caret_x - state.scroll > inner_width - 2.0f) {
+            state.scroll = caret_x - inner_width + 2.0f;
+        }
+        if (caret_x - state.scroll < 0.0f) state.scroll = caret_x;
+        state.scroll = std::clamp(state.scroll, 0.0f, max_scroll);
+    } else {
+        state.scroll = 0.0f;
+    }
+
+    target_->PushAxisAlignedClip(
+        D2D1::RectF(static_cast<float>(inner.left),
+                    static_cast<float>(inner.top),
+                    static_cast<float>(inner.right),
+                    static_cast<float>(inner.bottom)),
+        D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+    if (focused && state.caret != state.anchor) {
+        const float selection_left = std::min(caret_x, anchor_x);
+        const float selection_right = std::max(caret_x, anchor_x);
+        fill_rect_alpha(
+            rect(inner.left + static_cast<int>(selection_left - state.scroll),
+                 inner.top,
+                 inner.left + static_cast<int>(selection_right - state.scroll),
+                 inner.bottom),
+            kAccent, 0.32f);
+    }
+    const float text_top =
+        static_cast<float>(y) + (static_cast<float>(height) - metrics.height) /
+                                    2.0f;
+    brush_->SetColor(color(kText));
+    target_->DrawTextLayout(
+        D2D1::Point2F(static_cast<float>(inner.left) - state.scroll, text_top),
+        layout.Get(), brush_.Get(), D2D1_DRAW_TEXT_OPTIONS_NONE);
+    if (focused) {
+        const float caret = static_cast<float>(inner.left) + caret_x - state.scroll;
+        const int caret_width = std::max(1, s(1, dpi));
+        fill_rect(rect(static_cast<int>(caret), y + s(6, dpi),
+                       static_cast<int>(caret) + caret_width,
+                       y + height - s(6, dpi)),
+                  kText);
+    }
+    target_->PopAxisAlignedClip();
 }
 
 App::UiField App::make_field(std::wstring label, std::wstring hint,
@@ -1205,6 +1795,14 @@ void App::paint_sections(int left, int right, int& y, int dpi,
         y = layout.card.bottom +
             (section_index + 1 < sections.size() ? s(24, dpi) : 0);
     }
+}
+
+void App::commit_client_id() {
+    global_settings_.client_id = narrow(trim(client_id_text_));
+    client_id_text_ = widen(global_settings_.client_id);
+    jol::writeGlobalSettings(global_settings_);
+    reset_input(6);
+    jol::log::info("settings", "client id updated");
 }
 
 void App::save_settings() {
@@ -1477,6 +2075,16 @@ void App::fill_rect(const D2D1_RECT_F& area, COLORREF c) {
     target_->FillRectangle(area, brush_.Get());
 }
 
+void App::fill_rect_alpha(const D2D1_RECT_F& area, COLORREF c,
+                          float alpha) {
+    if (brush_ == nullptr || target_ == nullptr) return;
+    brush_->SetColor(D2D1::ColorF(
+        static_cast<float>(GetRValue(c)) / 255.0f,
+        static_cast<float>(GetGValue(c)) / 255.0f,
+        static_cast<float>(GetBValue(c)) / 255.0f, alpha));
+    target_->FillRectangle(area, brush_.Get());
+}
+
 void App::draw_panel(const D2D1_RECT_F& area) {
     fill_rect(area, kSurface);
     if (brush_ == nullptr) return;
@@ -1682,12 +2290,13 @@ void App::paint_splitter(const RECT& client, int dpi) {
               lit ? kAccent : kBorder);
 }
 
-void App::begin_scroll(const RECT& client, int dpi) {
+void App::begin_scroll(const RECT& client, int dpi, int top) {
     if (target_ == nullptr) return;
+    scroll_view_top_ = top >= 0 ? top : s(112, dpi);
     target_->GetTransform(&scroll_saved_transform_);
     target_->PushAxisAlignedClip(
-        rect(0, s(112, dpi), static_cast<int>(client.right),
-             client.bottom - s(32, dpi) + s(34, dpi)),
+        rect(0, scroll_view_top_, static_cast<int>(client.right),
+             client.bottom + s(34, dpi)),
         D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
     target_->SetTransform(D2D1::Matrix3x2F::Translation(
         0.0f, static_cast<float>(-s(34, dpi) - scroll_)));
@@ -1703,12 +2312,13 @@ void App::set_scroll_extent(int content_bottom, const RECT& client,
                             int dpi) {
     const int max_scroll = std::max(
         0, content_bottom - s(34, dpi) -
-               (static_cast<int>(client.bottom) - s(32, dpi)));
+               static_cast<int>(client.bottom));
     scroll_max_ = max_scroll;
     scroll_ = std::clamp(scroll_, 0, scroll_max_);
 }
 
 void App::wheel(HWND window, int delta) {
+    if (autoscroll_active_) stopAutoscroll(window);
     if (scroll_max_ <= 0) return;
     RECT client{};
     GetClientRect(window, &client);
@@ -1719,22 +2329,178 @@ void App::wheel(HWND window, int delta) {
 }
 
 void App::paint_scrollbar(const RECT& client, int dpi) {
+    scrollbar_track_ = RECT{};
+    scrollbar_thumb_ = RECT{};
     if (scroll_max_ <= 0) return;
-    const int top = s(112, dpi) - s(34, dpi);
-    const int bottom =
-        static_cast<int>(client.bottom) - s(32, dpi);
+    const int top = (scroll_view_top_ >= 0 ? scroll_view_top_
+                                            : s(112, dpi)) -
+                    s(34, dpi);
+    const int bottom = static_cast<int>(client.bottom);
     if (bottom <= top) return;
-    const int track = bottom - top;
-    const int total = track + scroll_max_;
-    const int thumb_height =
-        std::max(s(24, dpi), track * track / std::max(1, total));
-    const int available = track - thumb_height;
+    const int track_height = bottom - top;
+    const int total = track_height + scroll_max_;
+    int thumb_height =
+        std::max(s(24, dpi), track_height * track_height / std::max(1, total));
+    thumb_height = std::min(thumb_height, track_height);
+    const int available = std::max(0, track_height - thumb_height);
     const int thumb_top =
         top + available * scroll_ / std::max(1, scroll_max_);
-    fill_rect(rect(static_cast<int>(client.right) - s(14, dpi), thumb_top,
-                   static_cast<int>(client.right) - s(4, dpi),
-                   thumb_top + thumb_height),
-              kSecondary);
+    scrollbar_track_ =
+        RECT{static_cast<int>(client.right) - s(14, dpi), top,
+             static_cast<int>(client.right) - s(4, dpi), bottom};
+    scrollbar_thumb_ =
+        RECT{scrollbar_track_.left, thumb_top, scrollbar_track_.right,
+             thumb_top + thumb_height};
+
+    draw_panel(rect(scrollbar_track_.left, scrollbar_track_.top,
+                    scrollbar_track_.right, scrollbar_track_.bottom));
+    fill_rect(rect(scrollbar_thumb_.left, scrollbar_thumb_.top,
+                   scrollbar_thumb_.right, scrollbar_thumb_.bottom),
+              scrollbar_dragging_ ? kAccent
+                                  : (scrollbar_hover_ ? kText : kSecondary));
+}
+
+bool App::scrollbar_press(HWND window, int x, int y) {
+    if (scroll_max_ <= 0 || !hit(x, y, scrollbar_track_)) return false;
+    const int dpi = static_cast<int>(GetDpiForWindow(window));
+    if (hit(x, y, scrollbar_thumb_)) {
+        scrollbar_dragging_ = true;
+        scrollbar_drag_offset_ = y - scrollbar_thumb_.top;
+        SetCapture(window);
+        InvalidateRect(window, nullptr, FALSE);
+        return true;
+    }
+    const int page = std::max(
+        s(48, dpi),
+        static_cast<int>(scrollbar_track_.bottom - scrollbar_track_.top) / 2);
+    if (y < scrollbar_thumb_.top) {
+        scroll_ = std::max(0, scroll_ - page);
+    } else {
+        scroll_ = std::min(scroll_max_, scroll_ + page);
+    }
+    InvalidateRect(window, nullptr, FALSE);
+    return true;
+}
+
+void App::scrollbar_drag(HWND window, int y) {
+    if (!scrollbar_dragging_) return;
+    const int available = std::max(
+        0, static_cast<int>(scrollbar_track_.bottom - scrollbar_track_.top) -
+               static_cast<int>(scrollbar_thumb_.bottom - scrollbar_thumb_.top));
+    if (available <= 0) return;
+    const int top = std::clamp(
+        y - scrollbar_drag_offset_, static_cast<int>(scrollbar_track_.top),
+        static_cast<int>(scrollbar_track_.top) + available);
+    scroll_ = std::clamp(
+        static_cast<int>(static_cast<long long>(top - scrollbar_track_.top) *
+                         scroll_max_ / available),
+        0, scroll_max_);
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+void App::middleDown(HWND window, int x, int y) {
+    if (autoscroll_active_) {
+        stopAutoscroll(window);
+        return;
+    }
+    if (page_fade_.active || scroll_max_ <= 0) return;
+    const int dpi = static_cast<int>(GetDpiForWindow(window));
+    if (x < contentLeft(rail_width_, dpi)) return;
+    if (scroll_max_ > 0 && hit(x, y, scrollbar_track_)) return;
+    if (input_at(x, y) >= 0) return;
+    if (manage_rename_dialog_) return;
+    autoscroll_active_ = true;
+    autoscroll_origin_ = POINT{x, y};
+    autoscroll_velocity_ = 0.0f;
+    autoscroll_accum_ = 0.0f;
+    autoscroll_mode_ = 0;
+    autoscroll_middle_down_ = true;
+    autoscroll_last_tick_ = GetTickCount64();
+    SetCapture(window);
+    SetTimer(window, 7, 16, nullptr);
+    SetCursor(autoscrollCursor());
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+void App::middleUp(HWND window) {
+    if (!autoscroll_active_) return;
+    autoscroll_middle_down_ = false;
+    if (autoscroll_mode_ == 1) {
+        stopAutoscroll(window);
+        return;
+    }
+    autoscroll_mode_ = 2;
+    ReleaseCapture();
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+void App::autoscrollMove(HWND window, int y) {
+    if (!autoscroll_active_) return;
+    const int dpi = static_cast<int>(GetDpiForWindow(window));
+    const float distance = static_cast<float>(y - autoscroll_origin_.y) *
+                          96.0f / static_cast<float>(dpi);
+    constexpr float kDeadZone = 15.0f;
+    if (std::fabs(distance) <= kDeadZone) {
+        autoscroll_velocity_ = 0.0f;
+    } else {
+        const float sign = distance > 0.0f ? 1.0f : -1.0f;
+        autoscroll_velocity_ =
+            std::pow(std::fabs(distance), 2.2f) * 0.000008f * sign;
+        autoscroll_velocity_ = std::clamp(autoscroll_velocity_, -8.0f, 8.0f);
+        if (autoscroll_middle_down_) autoscroll_mode_ = 1;
+    }
+    SetCursor(autoscrollCursor());
+    autoscrollAdvance();
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+void App::autoscrollAdvance() {
+    if (!autoscroll_active_) return;
+    const ULONGLONG now = GetTickCount64();
+    const int elapsed = std::clamp(
+        static_cast<int>(now - autoscroll_last_tick_), 1, 50);
+    autoscroll_last_tick_ = now;
+    if (autoscroll_velocity_ == 0.0f) return;
+    autoscroll_accum_ += autoscroll_velocity_ * static_cast<float>(elapsed);
+    const int step = static_cast<int>(autoscroll_accum_);
+    if (step == 0) return;
+    autoscroll_accum_ -= static_cast<float>(step);
+    scroll_ = std::clamp(scroll_ + step, 0, scroll_max_);
+}
+
+void App::autoscrollTick(HWND window) {
+    if (!autoscroll_active_) return;
+    autoscrollAdvance();
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+void App::stopAutoscroll(HWND window) {
+    if (!autoscroll_active_) return;
+    autoscroll_active_ = false;
+    autoscroll_middle_down_ = false;
+    autoscroll_velocity_ = 0.0f;
+    autoscroll_accum_ = 0.0f;
+    autoscroll_mode_ = 0;
+    KillTimer(window, 7);
+    ReleaseCapture();
+    SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+HCURSOR App::autoscrollCursor() const {
+    const HINSTANCE instance = GetModuleHandleW(nullptr);
+    int resource = IDC_PAN_MIDDLE_VERTICAL;
+    if (autoscroll_velocity_ > 0.0f) {
+        resource = IDC_PAN_SOUTH;
+    } else if (autoscroll_velocity_ < 0.0f) {
+        resource = IDC_PAN_NORTH;
+    }
+    HCURSOR cursor = LoadCursorW(instance, MAKEINTRESOURCEW(resource));
+    if (cursor == nullptr) {
+        cursor = LoadCursorW(
+            nullptr, autoscroll_velocity_ == 0.0f ? IDC_SIZEALL : IDC_SIZENS);
+    }
+    return cursor;
 }
 
 // The Launch page is deliberately hand-laid-out: its card, version list and
@@ -1745,9 +2511,8 @@ void App::paint_scrollbar(const RECT& client, int dpi) {
 // card, java prompt) far more than the settings-style pages.
 void App::paint_launch(const RECT& client, int dpi) {
     const int content_left = contentLeft(rail_width_, dpi);
-    const int content_width = std::min(
-        s(760, dpi),
-        static_cast<int>(client.right) - content_left - s(32, dpi));
+    const int content_width = std::max(
+        0, static_cast<int>(client.right) - content_left - s(32, dpi));
     const int content_right = content_left + content_width;
 
     draw_text(tr(language_, Text::launchTitle),
@@ -2010,7 +2775,8 @@ void App::paint_versions(const RECT& client, int dpi) {
             paint_button(button.left, button.top, button.right - button.left,
                          button.bottom - button.top,
                          tr(language_, Text::versionOpenFolder), false,
-                         row != nullptr, hover_action_ == 2, dpi);
+                         !game_dir_.empty() || row != nullptr,
+                         hover_action_ == 2, dpi);
             ui_hits_.push_back(UiHit{button, 200});
         }));
     if (!broken_versions_.empty()) {
@@ -2085,7 +2851,7 @@ void App::paint_versions(const RECT& client, int dpi) {
                                  input_top + s(30, dpi)};
                 paint_input(input.left, input.top, input.right - input.left,
                             input.bottom - input.top, java_text_,
-                            focus_field_ == 0, dpi);
+                            focus_field_ == 0, dpi, 0);
                 ui_hits_.push_back(UiHit{input, 203});
                 if (!java_manual_status_.empty()) {
                     draw_text(java_manual_status_,
@@ -2132,7 +2898,7 @@ void App::paint_versions(const RECT& client, int dpi) {
                          paint_input(input.left, input.top,
                                      input.right - input.left,
                                      input.bottom - input.top, text,
-                                     focus_field_ == field_id, dpi);
+                                     focus_field_ == field_id, dpi, field_id);
                          draw_text(L"MB",
                                    rect(area.right - s(58, dpi), input.top,
                                         area.right - s(16, dpi),
@@ -2161,7 +2927,7 @@ void App::paint_versions(const RECT& client, int dpi) {
                              input_top + s(30, dpi)};
             paint_input(input.left, input.top, input.right - input.left,
                         input.bottom - input.top, jvm_text_,
-                        focus_field_ == 3, dpi);
+                        focus_field_ == 3, dpi, 3);
             ui_hits_.push_back(UiHit{input, 207});
         }));
     sections.push_back(std::move(jvm));
@@ -2329,7 +3095,7 @@ void App::paint_manage(const RECT& client, int dpi) {
                   DWRITE_TEXT_ALIGNMENT_LEADING);
         paint_input(dialog_left + s(24, dpi), dialog_top + s(60, dpi),
                     width - s(48, dpi), s(34, dpi), rename_text_,
-                    focus_field_ == 4, dpi);
+                    focus_field_ == 4, dpi, 4);
         paint_button(dialog_right - s(188, dpi),
                      dialog_bottom - s(52, dpi), s(80, dpi), s(32, dpi),
                      tr(language_, Text::cancel), false, true, false, dpi);
@@ -2446,7 +3212,7 @@ void App::paint_settings(const RECT& client, int dpi) {
                              area.right - s(16, dpi), input_top + s(30, dpi)};
             paint_input(input.left, input.top, input.right - input.left,
                         input.bottom - input.top, client_id_text_,
-                        focus_field_ == 6, dpi);
+                        focus_field_ == 6, dpi, 6);
             ui_hits_.push_back(UiHit{input, 111});
         }));
     if (has_account_) {
@@ -2462,7 +3228,7 @@ void App::paint_settings(const RECT& client, int dpi) {
     about.fields.push_back(field(
         tr(language_, Text::appVersion), L"", 60, 150, -1,
         [this, dpi](const RECT& area) {
-            draw_text(L"0.1.0",
+            draw_text(widen(jol::kVersion),
                       rect(area.left, area.top, area.right, area.bottom),
                       s(12, dpi), kSecondary, DWRITE_FONT_WEIGHT_NORMAL,
                       DWRITE_TEXT_ALIGNMENT_TRAILING);
@@ -2751,6 +3517,7 @@ void App::paint(HWND window) {
         target_->SetTransform(D2D1::Matrix3x2F::Identity());
         target_->Clear(color(kBg));
         ui_hits_.clear();
+        input_rects_.clear();
 
         RECT client{};
         GetClientRect(window, &client);
@@ -2926,9 +3693,27 @@ void App::capture_window_state(HWND window) {
 
 void App::click(HWND window, int x, int y) {
     if (page_fade_.active) return;
+    if (autoscroll_active_) {
+        stopAutoscroll(window);
+        return;
+    }
     RECT client{};
     GetClientRect(window, &client);
     const int dpi = static_cast<int>(GetDpiForWindow(window));
+
+    bool dialog_open = manage_rename_dialog_;
+    if (!dialog_open && scrollbar_press(window, x, y)) return;
+
+    int clicked_field = input_at(x, y);
+    if (focus_field_ == 6 && clicked_field != 6) commit_client_id();
+    if (clicked_field >= 0) {
+        const bool extend = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+        if (input_mouse(window, clicked_field, x, y, extend)) {
+            input_drag_id_ = clicked_field;
+            SetCapture(window);
+            return;
+        }
+    }
 
 
     if (java_prompt_) {
@@ -3154,44 +3939,80 @@ void App::click_versions(HWND window, int x, int y) {
         for (const UiHit& target : ui_hits_) {
             if (!hit(x, y + scroll_, target.rect)) continue;
             switch (target.action) {
-            case 200:
+            case 200: {
+                std::filesystem::path directory = game_dir_;
+                bool found = false;
                 for (const auto& version : versions_) {
-                    if (version.name == current_version_) {
-                        ShellExecuteW(window, L"open", version.dir.c_str(),
-                                      nullptr, nullptr, SW_SHOWNORMAL);
-                        break;
+                    if (version.name != current_version_) continue;
+                    directory = version.dir;
+                    found = true;
+                    break;
+                }
+                if (!found && !current_version_.empty()) {
+                    directory = game_dir_ / L"versions" /
+                                jol::platform::path_from_utf8(
+                                    current_version_);
+                }
+                std::error_code directory_error;
+                const auto ask_for_directory = [&] {
+                    MessageBoxW(window,
+                                tr(language_, Text::versionFolderMissing),
+                                tr(language_, Text::versionOpenFolder),
+                                MB_OK | MB_ICONWARNING);
+                    const auto selected = chooseFolder(window, game_dir_);
+                    const auto chosen = normalizeGameDirectory(selected);
+                    if (!chosen.empty() &&
+                        confirmGameDirectory(window, chosen, language_)) {
+                        game_dir_ = chosen;
+                        scan();
+                        save_settings();
                     }
+                    InvalidateRect(window, nullptr, FALSE);
+                };
+                if (directory.empty() ||
+                    !std::filesystem::is_directory(directory,
+                                                    directory_error)) {
+                    ask_for_directory();
+                    return;
+                }
+                const HINSTANCE result = ShellExecuteW(
+                    window, L"open", directory.c_str(), nullptr, nullptr,
+                    SW_SHOWNORMAL);
+                if (reinterpret_cast<std::intptr_t>(result) <= 32) {
+                    ask_for_directory();
                 }
                 return;
+            }
             case 210:
                 begin_java_detection(window, true);
                 InvalidateRect(window, nullptr, FALSE);
                 return;
             case 201:
                 manual_java_ = false;
+                focus_field_ = -1;
                 validate_manual_java(false);
                 InvalidateRect(window, nullptr, FALSE);
                 return;
             case 202:
                 manual_java_ = true;
-                focus_field_ = 0;
                 validate_manual_java(false);
+                focus_input(window, 0);
                 InvalidateRect(window, nullptr, FALSE);
                 return;
             case 203:
-                focus_field_ = 0;
+                focus_input(window, 0);
                 InvalidateRect(window, nullptr, FALSE);
                 return;
             case 205:
-                focus_field_ = 1;
+                focus_input(window, 1);
                 InvalidateRect(window, nullptr, FALSE);
                 return;
             case 206:
-                focus_field_ = 2;
+                focus_input(window, 2);
                 InvalidateRect(window, nullptr, FALSE);
                 return;
             case 207:
-                focus_field_ = 3;
+                focus_input(window, 3);
                 InvalidateRect(window, nullptr, FALSE);
                 return;
             case 208:
@@ -3278,8 +4099,10 @@ void App::click_settings(HWND window, int x, int y) {
             InvalidateRect(window, nullptr, FALSE);
             return;
         case 103: {
-            const auto chosen = chooseFolder(window, game_dir_);
-            if (!chosen.empty()) {
+            const auto selected = chooseFolder(window, game_dir_);
+            const auto chosen = normalizeGameDirectory(selected);
+            if (!chosen.empty() &&
+                confirmGameDirectory(window, chosen, language_)) {
                 game_dir_ = chosen;
                 scan();
                 save_settings();
@@ -3326,7 +4149,7 @@ void App::click_settings(HWND window, int x, int y) {
             InvalidateRect(window, nullptr, FALSE);
             return;
         case 111:
-            focus_field_ = 6;
+            focus_input(window, 6);
             InvalidateRect(window, nullptr, FALSE);
             return;
         case 109:
@@ -3401,7 +4224,7 @@ void App::export_logs(HWND window) {
     if (ok) {
         add_file(log_path, "launcher.log");
         add_file(log_path.parent_path() / "launcher.1.log", "launcher.1.log");
-        std::string info = "JO-Launcher 0.1.0\n";
+        std::string info = narrow(std::wstring(jol::kProductName)) + " " + jol::kVersion + "\n";
         info += std::string("os: ") + jol::platform::os_name() + " " +
                 jol::platform::os_arch() + "\n";
         info += "game dir: " + jol::platform::path_to_utf8(game_dir_) +
@@ -3464,14 +4287,15 @@ void App::click_version_manager(HWND window, int x, int y) {
         const int dialog_top = (static_cast<int>(client.bottom) - height) / 2;
         const int dialog_right = dialog_left + width;
         const int dialog_bottom = dialog_top + height;
-        if (hit(x, y,
+        const int dialog_y = y - s(34, dpi);
+        if (hit(x, dialog_y,
                 RECT{dialog_left + s(24, dpi), dialog_top + s(60, dpi),
                      dialog_right - s(24, dpi), dialog_top + s(94, dpi)})) {
-            focus_field_ = 4;
+            focus_input(window, 4);
             InvalidateRect(window, nullptr, FALSE);
             return;
         }
-        if (hit(x, y,
+        if (hit(x, dialog_y,
                 RECT{dialog_right - s(188, dpi), dialog_bottom - s(52, dpi),
                      dialog_right - s(108, dpi), dialog_bottom - s(20, dpi)})) {
             manage_rename_dialog_ = false;
@@ -3479,7 +4303,7 @@ void App::click_version_manager(HWND window, int x, int y) {
             InvalidateRect(window, nullptr, FALSE);
             return;
         }
-        if (hit(x, y,
+        if (hit(x, dialog_y,
                 RECT{dialog_right - s(96, dpi), dialog_bottom - s(52, dpi),
                      dialog_right - s(24, dpi), dialog_bottom - s(20, dpi)})) {
             commit_manage_rename();
@@ -3521,7 +4345,8 @@ void App::click_version_manager(HWND window, int x, int y) {
             manage_rename_target_ = version.name;
             rename_text_ = widen(version.name);
             manage_rename_dialog_ = true;
-            focus_field_ = 4;
+            reset_input(4);
+            focus_input(window, 4, true);
             manage_error_.clear();
             InvalidateRect(window, nullptr, FALSE);
             return;
@@ -3561,8 +4386,7 @@ void App::click_launch(HWND window, int x, int y) {
     const int dpi = static_cast<int>(GetDpiForWindow(window));
     const int content_left = contentLeft(rail_width_, dpi);
     const int content_width =
-        std::min(s(760, dpi),
-                 static_cast<int>(client.right) - content_left - s(32, dpi));
+        std::max(0, static_cast<int>(client.right) - content_left - s(32, dpi));
     const int content_right = content_left + content_width;
     if (hit(x, y,
             RECT{static_cast<int>(client.right) - s(48, dpi), s(88, dpi),
@@ -3625,6 +4449,18 @@ void App::click_launch(HWND window, int x, int y) {
 }
 
 void App::mouseUp(HWND window) {
+    if (scrollbar_dragging_) {
+        scrollbar_dragging_ = false;
+        ReleaseCapture();
+        InvalidateRect(window, nullptr, FALSE);
+        return;
+    }
+    if (input_drag_id_ >= 0) {
+        input_drag_id_ = -1;
+        ReleaseCapture();
+        InvalidateRect(window, nullptr, FALSE);
+        return;
+    }
     if (!dragging_splitter_) return;
     dragging_splitter_ = false;
     ReleaseCapture();
@@ -3632,10 +4468,62 @@ void App::mouseUp(HWND window) {
     InvalidateRect(window, nullptr, FALSE);
 }
 
-void App::doubleClick(HWND window, int x, int /*y*/) {
+void App::rightClick(HWND window, int x, int y) {
+    if (page_fade_.active) return;
+    if (autoscroll_active_) {
+        stopAutoscroll(window);
+        return;
+    }
+    int field = input_at(x, y);
+    if (field < 0 || input_text(field) == nullptr) return;
+    if (focus_field_ != field || !input_has_selection(field)) {
+        input_mouse(window, field, x, y, false);
+    }
+
+    HMENU menu = CreatePopupMenu();
+    if (menu == nullptr) return;
+    const bool has_selection = input_has_selection(field);
+    const bool has_text = !input_text(field)->empty();
+    const bool has_clipboard = !clipboard_text().empty();
+    AppendMenuW(menu, MF_STRING | (has_selection ? MF_ENABLED : MF_GRAYED),
+                1, tr(language_, Text::cut));
+    AppendMenuW(menu, MF_STRING | (has_selection ? MF_ENABLED : MF_GRAYED),
+                2, tr(language_, Text::copy));
+    AppendMenuW(menu, MF_STRING | (has_clipboard ? MF_ENABLED : MF_GRAYED),
+                3, tr(language_, Text::paste));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING | (has_text ? MF_ENABLED : MF_GRAYED), 4,
+                tr(language_, Text::selectAll));
+
+    POINT point{};
+    GetCursorPos(&point);
+    SetForegroundWindow(window);
+    const int command = TrackPopupMenu(
+        menu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD,
+        point.x, point.y, 0, window, nullptr);
+    DestroyMenu(menu);
+    if (command == 1) {
+        input_cut(window, field);
+    } else if (command == 2) {
+        input_copy(field);
+    } else if (command == 3) {
+        input_insert(window, field, clipboard_text());
+    } else if (command == 4) {
+        input_select_all(window, field);
+    }
+    InvalidateRect(window, nullptr, FALSE);
+}
+
+void App::doubleClick(HWND window, int x, int y) {
     RECT client{};
     GetClientRect(window, &client);
     const int dpi = static_cast<int>(GetDpiForWindow(window));
+    const int field = input_at(x, y);
+    if (field >= 0) {
+        const std::size_t index = input_index_at(field, x, dpi);
+        input_select_word(window, field, index);
+        return;
+    }
     const int rail_width = s(rail_width_, dpi);
     if (x >= rail_width && x < rail_width + s(10, dpi)) {
         rail_width_ = 232;
@@ -3649,6 +4537,29 @@ void App::mouseMove(HWND window, int x, int y) {
     GetClientRect(window, &client);
     const int dpi = static_cast<int>(GetDpiForWindow(window));
     const int rail_width = s(rail_width_, dpi);
+
+    if (autoscroll_active_) {
+        autoscrollMove(window, y);
+        return;
+    }
+
+    if (scrollbar_dragging_) {
+        scrollbar_drag(window, y);
+        SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+        return;
+    }
+    const bool over_scrollbar =
+        scroll_max_ > 0 && hit(x, y, scrollbar_track_);
+    if (over_scrollbar != scrollbar_hover_) {
+        scrollbar_hover_ = over_scrollbar;
+        InvalidateRect(window, nullptr, FALSE);
+    }
+
+    if (input_drag_id_ >= 0) {
+        input_mouse(window, input_drag_id_, x, y, true);
+        SetCursor(LoadCursorW(nullptr, IDC_IBEAM));
+        return;
+    }
 
     if (dragging_splitter_) {
         const double logical_delta =
@@ -3666,7 +4577,12 @@ void App::mouseMove(HWND window, int x, int y) {
     }
 
     bool splitter = x >= rail_width && x < rail_width + s(10, dpi);
-    SetCursor(LoadCursorW(nullptr, splitter ? IDC_SIZEWE : IDC_ARROW));
+    const bool over_input = input_at(x, y) >= 0;
+    SetCursor(LoadCursorW(nullptr, splitter ? IDC_SIZEWE
+                                            : (over_scrollbar
+                                                   ? IDC_ARROW
+                                                   : (over_input ? IDC_IBEAM
+                                                                 : IDC_ARROW))));
 
     int nav = -1;
     bool account = false;
@@ -3684,9 +4600,8 @@ void App::mouseMove(HWND window, int x, int y) {
 
     y += s(34, dpi);
     const int content_left = contentLeft(rail_width_, dpi);
-    const int content_width = std::min(
-        s(760, dpi),
-        static_cast<int>(client.right) - content_left - s(32, dpi));
+    const int content_width = std::max(
+        0, static_cast<int>(client.right) - content_left - s(32, dpi));
     const int content_right = content_left + content_width;
     int action = -1;
     int version = -1;
@@ -3741,6 +4656,7 @@ void App::mouseLeave(HWND window) {
     hover_version_ = -1;
     hover_account_ = false;
     hover_splitter_ = false;
+    scrollbar_hover_ = false;
     SetCursor(LoadCursorW(nullptr, IDC_ARROW));
     InvalidateRect(window, nullptr, FALSE);
 }

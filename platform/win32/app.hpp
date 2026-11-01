@@ -55,7 +55,14 @@ public:
     void mouseLeave(HWND window);
     void key_char(HWND window, wchar_t character);
     void key_down(HWND window, int key);
+    void ime_start(HWND window);
+    void ime_composition(HWND window, LPARAM flags);
+    void ime_end(HWND window);
     void mouseUp(HWND window);
+    void rightClick(HWND window, int x, int y);
+    void middleDown(HWND window, int x, int y);
+    void middleUp(HWND window);
+    void autoscrollTick(HWND window);
     void wheel(HWND window, int delta);
     void apply_initial_window(HWND window);
     void capture_window_state(HWND window);
@@ -113,6 +120,7 @@ public:
         std::string name;
         std::string error;
     };
+
 
     void handle_login_result(LoginResult* result);
     void handle_launch_result(LaunchResult* result);
@@ -219,6 +227,39 @@ private:
     std::wstring manage_notice_;
     bool manage_import_busy_ = false;
     std::thread manage_import_thread_;
+
+    struct InputState {
+        std::size_t caret = 0;
+        std::size_t anchor = 0;
+        float scroll = 0.0f;
+    };
+    std::map<int, InputState> input_states_;
+    std::map<int, RECT> input_rects_;
+    int input_drag_id_ = -1;
+
+    Microsoft::WRL::ComPtr<IDWriteTextLayout> make_input_layout(
+        const std::wstring& text, int dpi) const;
+    std::wstring* input_text(int field_id);
+    InputState& input_state(int field_id);
+    void reset_input(int field_id);
+    void focus_input(HWND window, int field_id, bool select_all = false);
+    bool input_char(HWND window, int field_id, wchar_t character);
+    bool input_key(HWND window, int field_id, int key);
+    bool input_insert(HWND window, int field_id, const std::wstring& value);
+    bool input_mouse(HWND window, int field_id, int x, int y, bool extend);
+    int input_at(int x, int y) const;
+    std::size_t input_index_at(int field_id, int x, int dpi);
+    void input_select_word(HWND window, int field_id, std::size_t index);
+    bool input_has_selection(int field_id) const;
+    void input_copy(int field_id);
+    void input_cut(HWND window, int field_id);
+    void input_select_all(HWND window, int field_id);
+    void input_after_change(HWND window, int field_id);
+    void input_set_caret(HWND window, int field_id, std::size_t caret,
+                         bool extend);
+    void update_ime_position(HWND window);
+    std::wstring clipboard_text() const;
+    bool set_clipboard_text(const std::wstring& text) const;
     bool dark_mode_ = true;
     bool follow_system_ = false;
     Language language_ = Language::en;
@@ -232,6 +273,19 @@ private:
     int splitter_start_width_ = 232;
     int scroll_ = 0;
     int scroll_max_ = 0;
+    int scroll_view_top_ = -1;
+    RECT scrollbar_track_{};
+    RECT scrollbar_thumb_{};
+    bool scrollbar_hover_ = false;
+    bool scrollbar_dragging_ = false;
+    int scrollbar_drag_offset_ = 0;
+    bool autoscroll_active_ = false;
+    POINT autoscroll_origin_{};
+    float autoscroll_velocity_ = 0.0f;
+    float autoscroll_accum_ = 0.0f;
+    ULONGLONG autoscroll_last_tick_ = 0;
+    int autoscroll_mode_ = 0;
+    bool autoscroll_middle_down_ = false;
     D2D1_MATRIX_3X2_F scroll_saved_transform_{};
     bool theme_animating_ = false;
     float theme_progress_ = 1.0f;
@@ -331,7 +385,8 @@ private:
                       const wchar_t* label, bool primary, bool enabled,
                       bool hovered, int dpi);
     void paint_input(int x, int y, int width, int height,
-                     const std::wstring& text, bool focused, int dpi);
+                     const std::wstring& text, bool focused, int dpi,
+                     int field_id);
     void change_page(HWND window, int page_index);
     void paint_nav(int index, const wchar_t* label, int x, int y, int width,
                    int height, bool selected, bool hovered, int dpi);
@@ -343,11 +398,19 @@ private:
     };
     std::vector<NavEntry> nav_entries(int dpi) const;
     void paint_nav_category(const NavEntry& entry, int dpi);
-    void begin_scroll(const RECT& client, int dpi);
+    void begin_scroll(const RECT& client, int dpi, int top = -1);
     void end_scroll();
     void set_scroll_extent(int content_bottom, const RECT& client, int dpi);
+    bool scrollbar_press(HWND window, int x, int y);
+    void scrollbar_drag(HWND window, int y);
+    void autoscrollMove(HWND window, int y);
+    void autoscrollAdvance();
+    void stopAutoscroll(HWND window);
+    HCURSOR autoscrollCursor() const;
     void start_theme_animation(HWND window, bool dark);
     void fill_rect(const D2D1_RECT_F& rect, COLORREF color);
+    void fill_rect_alpha(const D2D1_RECT_F& rect, COLORREF color,
+                         float alpha);
     void draw_panel(const D2D1_RECT_F& rect);
     void draw_text(const std::wstring& text, const D2D1_RECT_F& rect,
                    int size, COLORREF color, DWRITE_FONT_WEIGHT weight,
@@ -364,6 +427,7 @@ private:
     void begin_java_detection(HWND window, bool force = false);
     void refresh_java_status();
     void validate_manual_java(bool probe);
+    void commit_client_id();
     void click_launch(HWND window, int x, int y);
     void click_versions(HWND window, int x, int y);
     void click_version_manager(HWND window, int x, int y);
