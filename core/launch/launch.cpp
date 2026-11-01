@@ -8,6 +8,7 @@
 #include "fs_safe.hpp"
 #include "json_io.hpp"
 #include "log.hpp"
+#include "product_info.hpp"
 #include "mc/manifest_lookup.hpp"
 #include "secure_wipe.hpp"
 
@@ -996,7 +997,7 @@ GameProcess start(const LaunchRequest& request) {
          narrow(assets_dir / L"virtual" /
                 std::filesystem::path(widen(asset_index)))},
         {"launcher_name", "JO-Launcher"},
-        {"launcher_version", "0.1.0"},
+        {"launcher_version", jol::kVersion},
         {"resolution_width", "854"},
         {"resolution_height", "480"},
     };

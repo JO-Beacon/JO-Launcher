@@ -82,6 +82,8 @@ target_link_libraries(jolauncher_core PUBLIC
     nlohmann_json::nlohmann_json
     miniz
 )
+target_compile_definitions(jolauncher_core PUBLIC
+    JOL_VERSION="${PROJECT_VERSION}")
 if (WIN32)
     target_link_libraries(jolauncher_core PUBLIC winhttp crypt32 shell32 ole32)
 else()
@@ -120,6 +122,7 @@ target_link_libraries(JO-Launcher PRIVATE
     shell32
     ole32
     advapi32
+    imm32
 )
 
 target_compile_definitions(JO-Launcher PRIVATE UNICODE _UNICODE NOMINMAX)
