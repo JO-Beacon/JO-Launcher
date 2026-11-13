@@ -28,7 +28,7 @@
 
 ## Requirements
 
-- Windows 10 or 11, x64
+- Windows 10 or 11, 64-bit
 - A Java runtime for the Minecraft version you want to launch (detected automatically; can be set per version)
 - A Microsoft account that owns Minecraft: Java Edition
 - Your own Azure application (client) ID for sign-in

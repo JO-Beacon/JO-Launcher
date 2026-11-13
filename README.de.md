@@ -28,7 +28,7 @@
 
 ## Voraussetzungen
 
-- Windows 10 oder 11, x64
+- Windows 10 oder 11, 64-Bit
 - Eine Java-Laufzeitumgebung für die gewünschte Minecraft-Version (automatisch erkannt; pro Version manuell einstellbar)
 - Ein Microsoft-Konto, dem Minecraft: Java Edition gehört
 - Eine eigene Azure-Anwendungs-(Client-)ID für die Anmeldung

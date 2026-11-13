@@ -28,7 +28,7 @@
 
 ## 요구 사항
 
-- Windows 10 또는 11, x64
+- Windows 10 또는 11, 64비트
 - 실행할 Minecraft 버전에 맞는 Java 런타임(자동 감지, 버전별 수동 지정 가능)
 - Minecraft: Java Edition을 보유한 Microsoft 계정
 - 로그인용 자체 Azure 애플리케이션(클라이언트) ID

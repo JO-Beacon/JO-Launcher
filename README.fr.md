@@ -28,7 +28,7 @@
 
 ## Configuration requise
 
-- Windows 10 ou 11, x64
+- Windows 10 ou 11, 64 bits
 - Un environnement d'exécution Java pour la version de Minecraft à lancer (détecté automatiquement ; peut être défini par version)
 - Un compte Microsoft possédant Minecraft: Java Edition
 - Votre propre ID d'application (client) Azure pour la connexion

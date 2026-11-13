@@ -28,7 +28,7 @@
 
 ## Förutsättningar
 
-- Windows 10 eller 11, x64
+- Windows 10 eller 11, 64-bit
 - En Java-runtime för den Minecraft-version du vill starta (identifieras automatiskt; kan anges per version)
 - Ett Microsoft-konto som äger Minecraft: Java Edition
 - Ditt eget Azure-program-(klient-)ID för inloggning

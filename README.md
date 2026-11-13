@@ -28,7 +28,7 @@
 
 ## 系统要求
 
-- Windows 10 或 11，x64
+- Windows 10 或 11，64 位
 - 要启动的 Minecraft 版本所需的 Java 运行环境（自动检测，也可按版本手动指定）
 - 拥有 Minecraft: Java Edition 的微软账号
 - 自己的 Azure 应用（客户端）ID，用于登录

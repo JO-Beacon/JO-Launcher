@@ -28,7 +28,7 @@
 
 ## 必要条件
 
-- Windows 10 または 11、x64
+- Windows 10 または 11、64 ビット
 - 起動する Minecraft バージョンに対応した Java ランタイム（自動検出。バージョンごとに手動指定も可能）
 - Minecraft: Java Edition を所有する Microsoft アカウント
 - サインイン用の独自の Azure アプリケーション（クライアント）ID
