@@ -22,3 +22,6 @@ desktop.ini
 
 # Logs
 *.log
+
+# Icon products: generated from assets/icon/*.svg, never committed
+assets/icon/windows/

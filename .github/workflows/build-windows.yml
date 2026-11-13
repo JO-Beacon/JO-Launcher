@@ -19,6 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify the app icons match the cube master
+        run: python tools/compose-app-icons.py --check
+
       - name: Configure
         run: >
           cmake -S . -B build/ci -A x64

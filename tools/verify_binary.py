@@ -13,6 +13,11 @@ import sys
 from pathlib import Path
 
 
+OPTIONAL_IMPORTS = {
+    # MinGW/GCC links the system C runtime by default; MSVC does not.
+    "msvcrt.dll",
+}
+
 EXPECTED_IMPORTS = {
     "advapi32.dll",
     "crypt32.dll",
@@ -101,7 +106,7 @@ def main() -> int:
     print("imports: " + ", ".join(sorted(imports)))
 
     present = {name.lower() for name in imports}
-    unexpected = sorted(present - EXPECTED_IMPORTS)
+    unexpected = sorted(present - EXPECTED_IMPORTS - OPTIONAL_IMPORTS)
     if unexpected:
         fail("unexpected imports: " + ", ".join(unexpected))
     missing = sorted(EXPECTED_IMPORTS - present)

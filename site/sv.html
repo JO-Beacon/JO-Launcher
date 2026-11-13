@@ -3,11 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0e0f12">
+  <meta name="theme-color" content="#0e0f12" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5f2ec" media="(prefers-color-scheme: light)">
   <meta name="description" content="JO-Launcher är en lättviktig startare med öppen källkod för Minecraft: Java Edition.">
   <title>JO-Launcher — en lättare Minecraft: Java Edition-startare</title>
-  <link rel="icon" href="assets/favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  <script>
+    try {
+      var t = localStorage.getItem("jol-theme");
+      if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  </script>
   <link rel="stylesheet" href="style.css">
+  <script src="theme.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Hoppa till innehållet</a>
@@ -22,8 +31,14 @@
         <a href="#download">Ladda ner</a>
         <a href="https://github.com/JO-Beacon/JO-Launcher" target="_blank" rel="noopener">GitHub ↗</a>
       </nav>
+      <div class="theme" role="group" aria-label="Tema">
+        <button type="button" data-theme-set="system" aria-pressed="true">Auto</button>
+        <button type="button" data-theme-set="dark" aria-pressed="false">Mörkt</button>
+        <button type="button" data-theme-set="light" aria-pressed="false">Ljust</button>
+      </div>
       <div class="lang" aria-label="Språk">
-        <a href="index.html">EN</a>
+        <a href="en.html">EN</a>
+        <a href="index.html">中文</a>
         <a class="active" href="sv.html" aria-current="page">SV</a>
       </div>
     </div>
@@ -121,12 +136,12 @@
           <p class="section-kicker">03 / Färdplan</p>
           <h2>Det som kommer härnäst.</h2>
         </div>
-        <p>Linux-stöd och kontoverktyg är planerade. Versionshantering, import och städning finns redan.</p>
+        <p>Linux-stöd och växling mellan flera konton är planerade. Inloggning, versionshantering, import och städning finns redan.</p>
       </div>
       <div class="roadmap">
         <div><span>TILLGÄNGLIGT</span><strong>Versionshantering</strong><small>Importera en mapp eller zip, byt namn och radera versioner från versionssidan.</small></div>
         <div><span>PLANERAT</span><strong>Linux-skrivbord</strong><small>Ett andra skrivbordsmål för samma inbyggda kodbas.</small></div>
-        <div><span>PLANERAT</span><strong>Kontoverktyg</strong><small>Avatarer och växling mellan konton.</small></div>
+        <div><span>TILLGÄNGLIGT</span><strong>Microsoft-inloggning</strong><small>Inloggning med enhetskod och din egen Azure-applikation (client) ID. Avatarer och växling mellan flera konton är planerade.</small></div>
         <div><span>PLANERAT</span><strong>Kraschdiagnostik</strong><small>Tydligare felrapporter och återställningsvägar.</small></div>
       </div>
     </section>
@@ -136,7 +151,7 @@
         <div>
           <p class="section-kicker">04 / Ladda ner</p>
           <h2>Hämta ett bygge.</h2>
-          <p>Windows-byggen, källarkiv och checksummor publiceras på GitHub Releases. Du kan också bygga JO-Launcher från källkoden med CMake och Visual Studio.</p>
+          <p>Windows-byggen, källarkiv och checksummor publiceras på GitHub Releases. Du kan också bygga JO-Launcher från källkoden med CMake, Visual Studio och Python.</p>
         </div>
         <div class="actions">
           <a class="btn primary" href="https://github.com/JO-Beacon/JO-Launcher/releases" target="_blank" rel="noopener">Öppna releases <span>↗</span></a>

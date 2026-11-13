@@ -1,4 +1,9 @@
 #include "app.hpp"
+#ifdef JOL_USE_DRAFTUI
+#include "draftui_bridge.hpp"
+#include "jo_draftui/controls/basic.hpp"
+#include "jo_draftui/controls/kit.hpp"
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -58,6 +63,24 @@ Palette currentPalette() {
     return Palette{kBg, kSurface, kBorder, kText, kSecondary, kAccent,
                    kHover};
 }
+
+#ifdef JOL_USE_DRAFTUI
+jo::draftui::Color draft_color(COLORREF value) {
+    return jo::draftui::Color(GetRValue(value) / 255.0f,
+                              GetGValue(value) / 255.0f,
+                              GetBValue(value) / 255.0f);
+}
+
+jo::draftui::Theme draft_theme(int dpi) {
+    jo::draftui::Theme theme;
+    theme.scale = static_cast<float>(dpi) / 96.0f;
+    theme.palette = jo::draftui::Palette{
+        draft_color(kBg), draft_color(kSurface), draft_color(kBorder),
+        draft_color(kText), draft_color(kSecondary), draft_color(kSecondary),
+        draft_color(kAccent), true, draft_color(kHover)};
+    return theme;
+}
+#endif
 
 int blendChannel(int from, int to, float t) {
     return static_cast<int>(static_cast<float>(from) +
@@ -1613,11 +1636,6 @@ void App::paint_input(int x, int y, int width, int height,
                       const std::wstring& text, bool focused, int dpi,
                       int field_id) {
     const D2D1_RECT_F area = rect(x, y, x + width, y + height);
-    fill_rect(area, kBg);
-    if (brush_ != nullptr) {
-        brush_->SetColor(color(focused ? kAccent : kBorder));
-        target_->DrawRectangle(area, brush_.Get(), 1.0f);
-    }
     if (field_id >= 0 && target_ != nullptr) {
         D2D1_MATRIX_3X2_F transform{};
         target_->GetTransform(&transform);
@@ -1628,6 +1646,31 @@ void App::paint_input(int x, int y, int width, int height,
             y + height + static_cast<int>(transform.dy)};
     }
 
+#ifdef JOL_USE_DRAFTUI
+    jo::draftui::TextInputState draft_input;
+    draft_input.text = text;
+    draft_input.focused = focused;
+    if (field_id >= 0) {
+        const InputState& source = input_state(field_id);
+        draft_input.caret = source.caret;
+        draft_input.anchor = source.anchor;
+        draft_input.scroll = source.scroll;
+    }
+    const jo::draftui::Theme theme = draft_theme(dpi);
+    DraftCanvas canvas(*this, dpi, theme);
+    jo::draftui::paint_text_input(
+        canvas,
+        jo::draftui::Rect{static_cast<float>(x), static_cast<float>(y),
+                          static_cast<float>(x + width),
+                          static_cast<float>(y + height)},
+        draft_input, theme);
+    return;
+#else
+    fill_rect(area, kBg);
+    if (brush_ != nullptr) {
+        brush_->SetColor(color(focused ? kAccent : kBorder));
+        target_->DrawRectangle(area, brush_.Get(), 1.0f);
+    }
     const RECT inner{x + s(10, dpi), y + s(3, dpi),
                      x + width - s(8, dpi), y + height - s(3, dpi)};
     const float inner_width = static_cast<float>(inner.right - inner.left);
@@ -1698,6 +1741,7 @@ void App::paint_input(int x, int y, int width, int height,
                   kText);
     }
     target_->PopAxisAlignedClip();
+#endif
 }
 
 App::UiField App::make_field(std::wstring label, std::wstring hint,
@@ -1707,7 +1751,9 @@ App::UiField App::make_field(std::wstring label, std::wstring hint,
     UiField value;
     value.label = std::move(label);
     value.hint = std::move(hint);
-    value.height = height;
+    // A hint occupies a second text line.  Keep that rule here instead of
+    // trusting every call site to remember 60 px.
+    value.height = std::max(height, value.hint.empty() ? 42 : 60);
     value.control_width = control_width;
     value.full_width = full_width;
     value.action = action;
@@ -1717,6 +1763,10 @@ App::UiField App::make_field(std::wstring label, std::wstring hint,
 
 void App::paint_sections(int left, int right, int& y, int dpi,
                          const std::vector<UiSection>& sections) {
+#ifdef JOL_USE_DRAFTUI
+    const jo::draftui::Theme theme = draft_theme(dpi);
+    DraftCanvas canvas(*this, dpi, theme);
+#endif
     for (size_t section_index = 0; section_index < sections.size();
          ++section_index) {
         const UiSection& section = sections[section_index];
@@ -1727,11 +1777,21 @@ void App::paint_sections(int left, int right, int& y, int dpi,
         }
         const ui::SectionLayout layout =
             ui::section(left, right, y, dpi, heights);
+#ifdef JOL_USE_DRAFTUI
+        jo::draftui::paint_section_header(
+            canvas,
+            jo::draftui::Rect{static_cast<float>(layout.title.left),
+                              static_cast<float>(layout.title.top),
+                              static_cast<float>(layout.title.right),
+                              static_cast<float>(layout.title.bottom)},
+            section.title, theme);
+#else
         draw_text(section.title,
                   rect(layout.title.left, layout.title.top,
                        layout.title.right, layout.title.bottom),
                   s(12, dpi), kSecondary, DWRITE_FONT_WEIGHT_NORMAL,
                   DWRITE_TEXT_ALIGNMENT_LEADING);
+#endif
         draw_panel(rect(layout.card.left, layout.card.top,
                         layout.card.right, layout.card.bottom));
         for (size_t i = 0; i < section.fields.size(); ++i) {
@@ -1742,6 +1802,15 @@ void App::paint_sections(int left, int right, int& y, int dpi,
                                row.row.bottom + 1),
                           kBorder);
             }
+#ifdef JOL_USE_DRAFTUI
+            jo::draftui::paint_field(
+                canvas,
+                jo::draftui::Rect{static_cast<float>(row.row.left),
+                                  static_cast<float>(row.row.top),
+                                  static_cast<float>(row.row.right),
+                                  static_cast<float>(row.row.bottom)},
+                field.label, field.hint, theme);
+#else
             // Label + optional hint line form one block, centred vertically in
             // the row so 42/45/60 px rows all look aligned.
             const RECT band = label_band(row.row, dpi, !field.hint.empty());
@@ -1760,6 +1829,7 @@ void App::paint_sections(int left, int right, int& y, int dpi,
                           s(12, dpi), kSecondary, DWRITE_FONT_WEIGHT_NORMAL,
                           DWRITE_TEXT_ALIGNMENT_LEADING);
             }
+#endif
             RECT control{};
             if (field.full_width) {
                 control = RECT{row.row.left + s(16, dpi),
@@ -1930,11 +2000,17 @@ void App::load_icon_font() {
         return;
     }
 
+#if defined(__MINGW32__)
+    Microsoft::WRL::ComPtr<IDWriteFontSetBuilder1> builder;
+    if (FAILED(factory5->CreateFontSetBuilder(builder.GetAddressOf()))) return;
+    if (FAILED(builder->AddFontFile(font_file.Get()))) return;
+#else
     Microsoft::WRL::ComPtr<IDWriteFontSetBuilder> builder;
     if (FAILED(factory5->CreateFontSetBuilder(builder.GetAddressOf()))) return;
     Microsoft::WRL::ComPtr<IDWriteFontSetBuilder1> builder1;
     if (FAILED(builder.As(&builder1))) return;
     if (FAILED(builder1->AddFontFile(font_file.Get()))) return;
+#endif
 
     Microsoft::WRL::ComPtr<IDWriteFontSet> font_set;
     if (FAILED(builder->CreateFontSet(font_set.GetAddressOf()))) return;
@@ -1977,11 +2053,17 @@ void App::load_text_font() {
         return;
     }
 
+#if defined(__MINGW32__)
+    Microsoft::WRL::ComPtr<IDWriteFontSetBuilder1> builder;
+    if (FAILED(factory5->CreateFontSetBuilder(builder.GetAddressOf()))) return;
+    if (FAILED(builder->AddFontFile(font_file.Get()))) return;
+#else
     Microsoft::WRL::ComPtr<IDWriteFontSetBuilder> builder;
     if (FAILED(factory5->CreateFontSetBuilder(builder.GetAddressOf()))) return;
     Microsoft::WRL::ComPtr<IDWriteFontSetBuilder1> builder1;
     if (FAILED(builder.As(&builder1))) return;
     if (FAILED(builder1->AddFontFile(font_file.Get()))) return;
+#endif
 
     Microsoft::WRL::ComPtr<IDWriteFontSet> font_set;
     if (FAILED(builder->CreateFontSet(font_set.GetAddressOf()))) return;
@@ -2086,10 +2168,20 @@ void App::fill_rect_alpha(const D2D1_RECT_F& area, COLORREF c,
 }
 
 void App::draw_panel(const D2D1_RECT_F& area) {
+#ifdef JOL_USE_DRAFTUI
+    const jo::draftui::Theme theme = draft_theme(96);
+    DraftCanvas canvas(*this, 96, theme);
+    jo::draftui::paint_card(
+        canvas,
+        jo::draftui::Rect{area.left, area.top, area.right, area.bottom},
+        theme);
+    return;
+#else
     fill_rect(area, kSurface);
     if (brush_ == nullptr) return;
     brush_->SetColor(color(kBorder));
     target_->DrawRectangle(area, brush_.Get(), 1.0f);
+#endif
 }
 
 App::DialogFrame App::dialog_rect(const RECT& client, int dpi, int width,
@@ -2172,6 +2264,28 @@ void App::draw_text(const std::wstring& text, const D2D1_RECT_F& area,
 
 void App::paint_nav(int index, const wchar_t* label, int x, int y, int width,
                     int height, bool selected, bool hovered, int dpi) {
+#ifdef JOL_USE_DRAFTUI
+    int glyph = ICON_SETTINGS;
+    if (index == static_cast<int>(Page::launch)) {
+        glyph = ICON_ROCKET;
+    } else if (index == static_cast<int>(Page::versions)) {
+        glyph = ICON_ARCHIVE;
+    } else if (index == static_cast<int>(Page::about)) {
+        glyph = ICON_INFO;
+    }
+    const jo::draftui::Theme theme = draft_theme(dpi);
+    DraftCanvas canvas(*this, dpi, theme);
+    jo::draftui::NavState state;
+    state.selected = selected;
+    state.hover = hovered;
+    jo::draftui::paint_nav_row(
+        canvas,
+        jo::draftui::Rect{static_cast<float>(x), static_cast<float>(y),
+                          static_cast<float>(x + width),
+                          static_cast<float>(y + height)},
+        label, static_cast<wchar_t>(glyph), theme, state);
+    return;
+#else
     const RECT row{x, y, x + width, y + height};
     if (selected) {
         fill_rect(rect(row.left, row.top, row.right, row.bottom), kSurface);
@@ -2186,6 +2300,8 @@ void App::paint_nav(int index, const wchar_t* label, int x, int y, int width,
         icon = ICON_ROCKET;
     } else if (index == static_cast<int>(Page::versions)) {
         icon = ICON_ARCHIVE;
+    } else if (index == static_cast<int>(Page::about)) {
+        icon = ICON_INFO;
     }
     const int icon_size = s(16, dpi);
     draw_icon(icon,
@@ -2197,11 +2313,29 @@ void App::paint_nav(int index, const wchar_t* label, int x, int y, int width,
               rect(x + s(40, dpi), y, x + width - s(12, dpi), y + height),
               s(14, dpi), selected ? kAccent : (hovered ? kText : kSecondary),
               DWRITE_FONT_WEIGHT_NORMAL, DWRITE_TEXT_ALIGNMENT_LEADING);
+#endif
 }
 
 void App::paint_button(int x, int y, int width, int height,
                        const wchar_t* label, bool primary, bool enabled,
                        bool hovered, int dpi) {
+#ifdef JOL_USE_DRAFTUI
+    const jo::draftui::Theme theme = draft_theme(dpi);
+    DraftCanvas canvas(*this, dpi, theme);
+    jo::draftui::Interaction state;
+    state.hover = hovered;
+    state.enabled = enabled;
+    jo::draftui::ButtonStyle style;
+    style.bordered = true;
+    style.primary = primary;
+    jo::draftui::paint_button(
+        canvas,
+        jo::draftui::Rect{static_cast<float>(x), static_cast<float>(y),
+                          static_cast<float>(x + width),
+                          static_cast<float>(y + height)},
+        label, theme, state, style);
+    return;
+#else
     const D2D1_RECT_F area = rect(x, y, x + width, y + height);
     if (hovered && enabled) fill_rect(area, kHover);
     if (brush_ != nullptr) {
@@ -2211,6 +2345,7 @@ void App::paint_button(int x, int y, int width, int height,
     const COLORREF c = !enabled ? kSecondary : (primary ? kAccent : kSecondary);
     draw_text(label, area, s(12, dpi), c, DWRITE_FONT_WEIGHT_NORMAL,
               DWRITE_TEXT_ALIGNMENT_CENTER);
+#endif
 }
 
 std::vector<App::NavEntry> App::nav_entries(int dpi) const {
@@ -2231,6 +2366,7 @@ std::vector<App::NavEntry> App::nav_entries(int dpi) const {
     add_page(static_cast<int>(Page::launch));  // Launch
     add_page(static_cast<int>(Page::versions));  // Version settings
     add_page(static_cast<int>(Page::settings));  // Settings
+    add_page(static_cast<int>(Page::about));     // About
     return entries;
 }
 
@@ -2240,9 +2376,23 @@ void App::paint_rail(const RECT& client, int dpi) {
     fill_rect(rect(0, 0, rail_width, client.bottom), kBg);
 
     for (const NavEntry& entry : nav_entries(dpi)) {
-        const wchar_t* label = entry.page == 0   ? tr(language_, Text::navLaunch)
-                               : entry.page == 1 ? tr(language_, Text::navVersions)
-                                                 : tr(language_, Text::navSettings);
+        const wchar_t* label = tr(language_, Text::navSettings);
+        switch (static_cast<Page>(entry.page)) {
+            case Page::launch:
+                label = tr(language_, Text::navLaunch);
+                break;
+            case Page::versions:
+                label = tr(language_, Text::navVersions);
+                break;
+            case Page::settings:
+                label = tr(language_, Text::navSettings);
+                break;
+            case Page::about:
+                label = tr(language_, Text::navAbout);
+                break;
+            default:
+                break;
+        }
         paint_nav(entry.page, label, entry.rect.left, entry.rect.top,
                   entry.rect.right - entry.rect.left,
                   entry.rect.bottom - entry.rect.top,
@@ -2280,6 +2430,20 @@ void App::paint_rail(const RECT& client, int dpi) {
 }
 
 void App::paint_splitter(const RECT& client, int dpi) {
+#ifdef JOL_USE_DRAFTUI
+    const jo::draftui::Theme theme = draft_theme(dpi);
+    DraftCanvas canvas(*this, dpi, theme);
+    jo::draftui::SplitterState state;
+    state.position = static_cast<float>(s(rail_width_, dpi));
+    state.dragging = dragging_splitter_;
+    state.hover = hover_splitter_;
+    jo::draftui::paint_splitter(
+        canvas,
+        jo::draftui::Rect{0.0f, 0.0f, static_cast<float>(client.right),
+                          static_cast<float>(client.bottom)},
+        state, theme);
+    return;
+#else
     const int start = s(rail_width_, dpi);
     const int width = s(10, dpi);
     const bool lit = hover_splitter_ || dragging_splitter_;
@@ -2288,6 +2452,7 @@ void App::paint_splitter(const RECT& client, int dpi) {
     fill_rect(rect(center - line_width / 2, 0,
                    center + (line_width + 1) / 2, client.bottom),
               lit ? kAccent : kBorder);
+#endif
 }
 
 void App::begin_scroll(const RECT& client, int dpi, int top) {
@@ -2352,12 +2517,38 @@ void App::paint_scrollbar(const RECT& client, int dpi) {
         RECT{scrollbar_track_.left, thumb_top, scrollbar_track_.right,
              thumb_top + thumb_height};
 
+#ifdef JOL_USE_DRAFTUI
+    const jo::draftui::Theme theme = draft_theme(dpi);
+    DraftCanvas canvas(*this, dpi, theme);
+    jo::draftui::ScrollState state;
+    state.offset = static_cast<float>(scroll_);
+    state.viewport_height = static_cast<float>(track_height);
+    state.content_height = static_cast<float>(track_height + scroll_max_);
+    state.dragging = scrollbar_dragging_;
+    state.hover = scrollbar_hover_;
+    const jo::draftui::ScrollbarGeometry geometry =
+        jo::draftui::paint_scrollbar(
+            canvas,
+            jo::draftui::Rect{0.0f, static_cast<float>(top),
+                              static_cast<float>(client.right),
+                              static_cast<float>(bottom)},
+            state, theme);
+    scrollbar_track_ = RECT{static_cast<int>(geometry.track.left),
+                            static_cast<int>(geometry.track.top),
+                            static_cast<int>(geometry.track.right),
+                            static_cast<int>(geometry.track.bottom)};
+    scrollbar_thumb_ = RECT{static_cast<int>(geometry.thumb.left),
+                            static_cast<int>(geometry.thumb.top),
+                            static_cast<int>(geometry.thumb.right),
+                            static_cast<int>(geometry.thumb.bottom)};
+#else
     draw_panel(rect(scrollbar_track_.left, scrollbar_track_.top,
                     scrollbar_track_.right, scrollbar_track_.bottom));
     fill_rect(rect(scrollbar_thumb_.left, scrollbar_thumb_.top,
                    scrollbar_thumb_.right, scrollbar_thumb_.bottom),
               scrollbar_dragging_ ? kAccent
                                   : (scrollbar_hover_ ? kText : kSecondary));
+#endif
 }
 
 bool App::scrollbar_press(HWND window, int x, int y) {
@@ -2602,6 +2793,10 @@ void App::paint_launch(const RECT& client, int dpi) {
         const int list_bottom =
             list_top + static_cast<int>(versions_.size()) * row_height;
         draw_panel(rect(content_left, list_top, content_right, list_bottom));
+#ifdef JOL_USE_DRAFTUI
+        const jo::draftui::Theme list_theme = draft_theme(dpi);
+        DraftCanvas list_canvas(*this, dpi, list_theme);
+#endif
         for (size_t i = 0; i < versions_.size(); ++i) {
             const int row_top = list_top + static_cast<int>(i) * row_height;
             const RECT row{content_left, row_top, content_right,
@@ -2611,6 +2806,21 @@ void App::paint_launch(const RECT& client, int dpi) {
                 fill_rect(rect(row.left, row.top, row.right, row.top + 1),
                           kBorder);
             }
+#ifdef JOL_USE_DRAFTUI
+            jo::draftui::Interaction list_state;
+            list_state.hover = hover_version_ == static_cast<int>(i);
+            jo::draftui::paint_list_card(
+                list_canvas,
+                jo::draftui::Rect{static_cast<float>(row.left),
+                                  static_cast<float>(row.top),
+                                  static_cast<float>(row.right),
+                                  static_cast<float>(row.bottom)},
+                widen(versions_[i].name),
+                widen(versions_[i].game_version + " · " +
+                       displayLoader(versions_[i].loader)),
+                static_cast<wchar_t>(ICON_ARCHIVE), list_theme, list_state,
+                selected);
+#else
             if (selected) {
                 fill_rect(rect(row.left, row.top, row.right, row.bottom), kBg);
                 fill_rect(rect(row.left, row.top, row.left + s(2, dpi),
@@ -2636,6 +2846,7 @@ void App::paint_launch(const RECT& client, int dpi) {
                            row.right - s(16, dpi), row.top + s(46, dpi)),
                       s(11, dpi), kSecondary, DWRITE_FONT_WEIGHT_NORMAL,
                       DWRITE_TEXT_ALIGNMENT_LEADING);
+#endif
         }
         next_y = list_bottom + s(24, dpi);
     }
@@ -2691,10 +2902,21 @@ void App::paint_launch(const RECT& client, int dpi) {
 void App::paint_versions(const RECT& client, int dpi) {
     const int left = contentLeft(rail_width_, dpi);
     const int right = contentRight(client, rail_width_, dpi);
+#ifdef JOL_USE_DRAFTUI
+    const jo::draftui::Theme page_theme = draft_theme(dpi);
+    DraftCanvas page_canvas(*this, dpi, page_theme);
+    jo::draftui::paint_page_header(
+        page_canvas,
+        jo::draftui::Rect{static_cast<float>(left), 0.0f,
+                          static_cast<float>(right),
+                          static_cast<float>(client.bottom)},
+        tr(language_, Text::versionTitle), L"", page_theme);
+#else
     draw_text(tr(language_, Text::versionTitle),
               rect(left, s(58, dpi), right, s(88, dpi)),
               s(20, dpi), kText, DWRITE_FONT_WEIGHT_BOLD,
               DWRITE_TEXT_ALIGNMENT_LEADING);
+#endif
     draw_icon(ICON_ARCHIVE,
               rect(static_cast<int>(client.right) - s(48, dpi),
                    s(88, dpi),
@@ -2961,6 +3183,17 @@ void App::paint_versions(const RECT& client, int dpi) {
 void App::paint_manage(const RECT& client, int dpi) {
     const int left = contentLeft(rail_width_, dpi);
     const int right = contentRight(client, rail_width_, dpi);
+#ifdef JOL_USE_DRAFTUI
+    const jo::draftui::Theme page_theme = draft_theme(dpi);
+    DraftCanvas page_canvas(*this, dpi, page_theme);
+    jo::draftui::paint_page_header(
+        page_canvas,
+        jo::draftui::Rect{static_cast<float>(left), 0.0f,
+                          static_cast<float>(right),
+                          static_cast<float>(client.bottom)},
+        tr(language_, Text::managerTitle),
+        tr(language_, Text::managerSubtitle), page_theme);
+#else
     draw_text(tr(language_, Text::managerTitle),
               rect(left, s(58, dpi), right, s(88, dpi)), s(20, dpi), kText,
               DWRITE_FONT_WEIGHT_BOLD,
@@ -2969,6 +3202,7 @@ void App::paint_manage(const RECT& client, int dpi) {
               rect(left, s(90, dpi), right, s(112, dpi)), s(12, dpi),
               kSecondary, DWRITE_FONT_WEIGHT_NORMAL,
               DWRITE_TEXT_ALIGNMENT_LEADING);
+#endif
     draw_icon(ICON_ARROW_LEFT,
               rect(static_cast<int>(client.right) - s(104, dpi),
                    s(88, dpi), static_cast<int>(client.right) - s(88, dpi),
@@ -3110,6 +3344,17 @@ void App::paint_manage(const RECT& client, int dpi) {
 void App::paint_settings(const RECT& client, int dpi) {
     const int left = contentLeft(rail_width_, dpi);
     const int right = contentRight(client, rail_width_, dpi);
+#ifdef JOL_USE_DRAFTUI
+    const jo::draftui::Theme page_theme = draft_theme(dpi);
+    DraftCanvas page_canvas(*this, dpi, page_theme);
+    jo::draftui::paint_page_header(
+        page_canvas,
+        jo::draftui::Rect{static_cast<float>(left), 0.0f,
+                          static_cast<float>(right),
+                          static_cast<float>(client.bottom)},
+        tr(language_, Text::settingsTitle),
+        tr(language_, Text::settingsSubtitle), page_theme);
+#else
     draw_text(tr(language_, Text::settingsTitle),
               rect(left, s(58, dpi), right, s(88, dpi)),
               s(20, dpi), kText, DWRITE_FONT_WEIGHT_BOLD,
@@ -3118,6 +3363,7 @@ void App::paint_settings(const RECT& client, int dpi) {
               rect(left, s(90, dpi), right, s(112, dpi)), s(12, dpi),
               kSecondary, DWRITE_FONT_WEIGHT_NORMAL,
               DWRITE_TEXT_ALIGNMENT_LEADING);
+#endif
 
     begin_scroll(client, dpi);
 
@@ -3223,29 +3469,75 @@ void App::paint_settings(const RECT& client, int dpi) {
     }
     sections.push_back(std::move(account));
 
-    UiSection about;
-    about.title = tr(language_, Text::aboutTitle);
-    about.fields.push_back(field(
-        tr(language_, Text::appVersion), L"", 60, 150, -1,
+    UiSection logs;
+    logs.title = tr(language_, Text::logs);
+    logs.fields.push_back(field(
+        tr(language_, Text::logs), L"", 42, 108, 108,
+        button(tr(language_, Text::browse), false)));
+    logs.fields.push_back(field(
+        tr(language_, Text::exportLogs), L"", 42, 108, 109,
+        button(tr(language_, Text::save), false)));
+    sections.push_back(std::move(logs));
+
+    int section_y = s(124, dpi);
+    paint_sections(left, right, section_y, dpi, sections);
+    set_scroll_extent(section_y + s(8, dpi), client, dpi);
+    end_scroll();
+}
+
+void App::paint_about(const RECT& client, int dpi) {
+    const int left = contentLeft(rail_width_, dpi);
+    const int right = contentRight(client, rail_width_, dpi);
+#ifdef JOL_USE_DRAFTUI
+    const jo::draftui::Theme page_theme = draft_theme(dpi);
+    DraftCanvas page_canvas(*this, dpi, page_theme);
+    jo::draftui::paint_page_header(
+        page_canvas,
+        jo::draftui::Rect{static_cast<float>(left), 0.0f,
+                          static_cast<float>(right),
+                          static_cast<float>(client.bottom)},
+        tr(language_, Text::aboutTitle), L"", page_theme);
+#else
+    draw_text(tr(language_, Text::aboutTitle),
+              rect(left, s(58, dpi), right, s(88, dpi)),
+              s(20, dpi), kText, DWRITE_FONT_WEIGHT_BOLD,
+              DWRITE_TEXT_ALIGNMENT_LEADING);
+#endif
+
+    begin_scroll(client, dpi);
+
+    auto field = [](std::wstring label, std::wstring hint, int height,
+                    int control_width, int action,
+                    std::function<void(const RECT&)> paint) {
+        return make_field(std::move(label), std::move(hint), height,
+                          control_width, false, action, std::move(paint));
+    };
+    auto button = [&](const wchar_t* text, bool selected) {
+        return [this, dpi, text, selected](const RECT& area) {
+            paint_button(area.left, area.top, area.right - area.left,
+                         area.bottom - area.top, text, false, true,
+                         selected, dpi);
+        };
+    };
+
+    std::vector<UiSection> sections;
+    UiSection product;
+    product.title = std::wstring(jol::kProductName);
+    product.fields.push_back(field(
+        tr(language_, Text::appVersion), L"", 42, 150, -1,
         [this, dpi](const RECT& area) {
             draw_text(widen(jol::kVersion),
                       rect(area.left, area.top, area.right, area.bottom),
                       s(12, dpi), kSecondary, DWRITE_FONT_WEIGHT_NORMAL,
                       DWRITE_TEXT_ALIGNMENT_TRAILING);
         }));
-    about.fields.push_back(field(
-        tr(language_, Text::logs), L"", 60, 108, 108,
-        button(tr(language_, Text::browse), false)));
-    about.fields.push_back(field(
-        tr(language_, Text::exportLogs), L"", 60, 108, 109,
-        button(tr(language_, Text::save), false)));
-    about.fields.push_back(field(
+    product.fields.push_back(field(
         tr(language_, Text::privacyTitle), tr(language_, Text::privacyHint),
         60, 108, 105, button(tr(language_, Text::view), false)));
-    about.fields.push_back(field(
+    product.fields.push_back(field(
         tr(language_, Text::licensesTitle), tr(language_, Text::licensesHint),
         60, 108, 106, button(tr(language_, Text::view), false)));
-    sections.push_back(std::move(about));
+    sections.push_back(std::move(product));
 
     int section_y = s(124, dpi);
     paint_sections(left, right, section_y, dpi, sections);
@@ -3575,6 +3867,13 @@ void App::paint(HWND window) {
                         paint_settings(client, dpi);
                     }
                     break;
+                case Page::about:
+                    if (settings_subpage_ != SettingsSubpage::none) {
+                        paint_settings_subpage(client, dpi, settings_subpage_);
+                    } else {
+                        paint_about(client, dpi);
+                    }
+                    break;
                 default:
                     break;
             }
@@ -3874,7 +4173,7 @@ void App::click(HWND window, int x, int y) {
     }
 
     y += s(34, dpi);
-    if (page_ == Page::settings &&
+    if ((page_ == Page::settings || page_ == Page::about) &&
         settings_subpage_ != SettingsSubpage::none) {
         click_settings_subpage(window, x, y);
         return;
@@ -3888,6 +4187,9 @@ void App::click(HWND window, int x, int y) {
             click_version_manager(window, x, y);
             return;
         case Page::settings:
+            click_settings(window, x, y);
+            return;
+        case Page::about:
             click_settings(window, x, y);
             return;
         default:

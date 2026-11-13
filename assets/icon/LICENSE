@@ -1,0 +1,32 @@
+JO-Launcher 图标资源
+JO-Launcher icon assets
+
+Copyright 2026 JO-Beacon. 保留所有权利（All rights reserved）。
+
+下列文件不在仓库根目录 Apache License 2.0 的授权范围内：
+
+  assets/icon/*.svg
+  platform/win32/app.ico
+  site/assets/mark.svg
+  site/assets/icon.svg
+  site/assets/favicon.ico
+
+允许：在未经任何修改、与官方版本一致的 JO-Launcher 源码或官方发行物中，原样
+随附分发这些图标。
+
+禁止：任何经过修改的版本使用这些图标——包括 fork、二次开发版，以及仅改名或
+仅改版本号的版本；哪怕只改一处也不允许。修改版分发前必须移除或替换上述图标。
+同时禁止单独提取、修改、再许可，或用于其它项目。
+
+---
+
+These files are NOT covered by the Apache License 2.0 that applies to the rest of
+this repository. All rights reserved.
+
+They may be redistributed only as part of a JO-Launcher source tree or official
+release that is unmodified and identical to the official version. Any modified
+version is not permitted to use them — including forks, derivative builds, and
+copies that only change the name or the version number; a single change is enough
+to disqualify. Modified versions must remove or replace these files before
+distribution. Extracting, modifying, sublicensing or reusing them in other
+projects is also not permitted.

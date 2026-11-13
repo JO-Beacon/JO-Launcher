@@ -19,6 +19,107 @@
   --max: 1120px;
 }
 
+/* 浅色：取软件里 paletteFor(false) 的同一组值，
+   bg/surface/border/text/secondary/accent 逐项对应，不另配色。
+   下面两处的变量必须一模一样：一处是手动选浅色，一处是跟随系统且没手选。 */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f2ec;
+  --surface: #fbfaf6;
+  --surface-2: #f2eee7;
+  --border: #e0dad0;
+  --text: #1c1b19;
+  --secondary: #6e6a62;
+  --accent: #4a6b8a;
+  --accent-soft: #33506b;
+  --danger: #a8563f;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #f5f2ec;
+    --surface: #fbfaf6;
+    --surface-2: #f2eee7;
+    --border: #e0dad0;
+    --text: #1c1b19;
+    --secondary: #6e6a62;
+    --accent: #4a6b8a;
+    --accent-soft: #33506b;
+    --danger: #a8563f;
+  }
+}
+
+/* 主题过渡：参数与软件的切换动画一致（platform/win32/app.cpp 的 animate_theme：
+   220ms，缓动 1-(1-t)²，用同形状的贝塞尔代替）。
+   把颜色变量注册成可插值的 <color>，切换时整页一起渐变，而不是逐条属性各配一遍。 */
+@property --bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #0e0f12;
+}
+
+@property --surface {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #16181d;
+}
+
+@property --surface-2 {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1b1e24;
+}
+
+@property --border {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #262a31;
+}
+
+@property --text {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #e6e3dc;
+}
+
+@property --secondary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #8a8f98;
+}
+
+@property --accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #8aa0b8;
+}
+
+@property --accent-soft {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #b5c5d6;
+}
+
+@property --danger {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #c98a7a;
+}
+
+:root {
+  transition-property: --bg, --surface, --surface-2, --border, --text,
+    --secondary, --accent, --accent-soft, --danger;
+  transition-duration: 220ms;
+  transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    transition: none;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -91,20 +192,13 @@ header {
   white-space: nowrap;
 }
 
+/* 品牌标记：直接用立方体本身（无底板），深浅主题共用同一份，
+   因为立方体靠自身明暗区分体块，不依赖背景色 */
 .mark {
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--accent);
-  transform: rotate(45deg);
+  width: 32px;
+  height: 32px;
   display: inline-block;
-  position: relative;
-}
-
-.mark::after {
-  content: "";
-  position: absolute;
-  inset: 4px;
-  background: var(--accent);
+  background: url("assets/mark.svg") center / contain no-repeat;
 }
 
 nav {
@@ -138,6 +232,42 @@ nav a:hover {
 .lang a.active {
   background: var(--surface-2);
   color: var(--accent-soft);
+}
+
+/* 主题三态切换：自动 / 深色 / 浅色，外观与语言切换保持一致 */
+.theme {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.theme button {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  padding: 4px 9px;
+  background: none;
+  color: var(--secondary);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.theme button:hover {
+  color: var(--text);
+}
+
+.theme button[aria-pressed="true"] {
+  background: var(--surface-2);
+  color: var(--accent-soft);
+}
+
+.theme button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -2px;
 }
 
 main {

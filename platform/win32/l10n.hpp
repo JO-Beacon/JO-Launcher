@@ -10,6 +10,7 @@ enum class Text {
     navLaunch,
     navVersions,
     navSettings,
+    navAbout,
     launchTitle,
     launchSubtitle,
     launchSwitch,

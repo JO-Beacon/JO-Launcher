@@ -33,6 +33,8 @@ class GameProcess;
 
 namespace jol::win32 {
 
+class DraftCanvas;
+
 struct Palette {
     COLORREF bg;
     COLORREF surface;
@@ -129,6 +131,8 @@ public:
     void handle_login_code(HWND window, jol::auth::DeviceCodeInfo* code);
 
 private:
+    friend class DraftCanvas;
+
     template <typename T>
     using ComPtr = Microsoft::WRL::ComPtr<T>;
 
@@ -136,7 +140,8 @@ private:
         launch,
         versions,
         settings,
-        manage
+        manage,
+        about
     };
     enum class SettingsSubpage { none, privacy, licenses };
 
@@ -377,6 +382,7 @@ private:
     void paint_launch(const RECT& client, int dpi);
     void paint_versions(const RECT& client, int dpi);
     void paint_settings(const RECT& client, int dpi);
+    void paint_about(const RECT& client, int dpi);
     void paint_settings_subpage(const RECT& client, int dpi,
                                SettingsSubpage page);
     void paint_manage(const RECT& client, int dpi);

@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'site/**'
+      - 'assets/icon/**'
+      - 'tools/export-site-icons.py'
       - '.github/workflows/deploy-site.yml'
   workflow_dispatch:
 
@@ -27,6 +29,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Verify the site icons match the icon source
+        run: python3 tools/export-site-icons.py --site site --check
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

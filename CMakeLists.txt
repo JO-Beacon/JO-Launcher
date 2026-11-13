@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(jolauncher VERSION 0.1.0 LANGUAGES C CXX)
+project(jolauncher VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,8 +11,20 @@ set(JOL_RC_PRODUCT "JO-Launcher")
 set(JOL_RC_EXE "JO-Launcher.exe")
 set(JOL_RC_VERSION "${PROJECT_VERSION}")
 
+# 可选的本地控件库 JO-DraftUI；默认关闭，不需要它也能构建
+option(JO_USE_DRAFTUI "Use the local JO-DraftUI control library" OFF)
+set(JO_DRAFTUI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../JO-DraftUI" CACHE PATH
+    "Path to the JO-DraftUI checkout")
+
 
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/platform/win32" JOL_RES_DIR)
+
+# 图标产物不入版本控制，由 assets/icon/*.svg 生成
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/platform/win32/app.ico")
+    message(FATAL_ERROR
+        "缺少图标产物 platform/win32/app.ico。该文件不入版本控制，需要先生成：\n"
+        "  python tools/export-icons.py")
+endif()
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/platform/win32/resources.rc.in"
     "${CMAKE_CURRENT_BINARY_DIR}/resources.rc"
@@ -125,6 +137,18 @@ target_link_libraries(JO-Launcher PRIVATE
     imm32
 )
 
+if (JO_USE_DRAFTUI)
+    if (NOT EXISTS "${JO_DRAFTUI_ROOT}/cpp/CMakeLists.txt")
+        message(FATAL_ERROR "JO-DraftUI checkout not found: ${JO_DRAFTUI_ROOT}")
+    endif()
+    add_subdirectory("${JO_DRAFTUI_ROOT}/cpp" "${CMAKE_BINARY_DIR}/jo_draftui")
+    target_sources(JO-Launcher PRIVATE platform/win32/draftui_bridge.cpp)
+    target_include_directories(JO-Launcher PRIVATE
+        "${JO_DRAFTUI_ROOT}/cpp/include")
+    target_link_libraries(JO-Launcher PRIVATE jo_draftui)
+    target_compile_definitions(JO-Launcher PRIVATE JOL_USE_DRAFTUI=1)
+endif()
+
 target_compile_definitions(JO-Launcher PRIVATE UNICODE _UNICODE NOMINMAX)
 
 if (MSVC)
@@ -135,6 +159,8 @@ if (MSVC)
     set_property(TARGET JO-Launcher PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
     )
+elseif (MINGW)
+    target_link_options(JO-Launcher PRIVATE -municode)
 endif()
 
 set_target_properties(JO-Launcher PROPERTIES OUTPUT_NAME "JO-Launcher")

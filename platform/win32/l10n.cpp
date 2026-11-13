@@ -13,6 +13,7 @@ const wchar_t* english(Text text) {
         case Text::navLaunch: return L"Launch";
         case Text::navVersions: return L"Version settings";
         case Text::navSettings: return L"Settings";
+        case Text::navAbout: return L"About";
         case Text::launchTitle: return L"Launch";
         case Text::launchSubtitle:
             return L"Current version and running instances";
@@ -62,7 +63,7 @@ const wchar_t* english(Text text) {
         case Text::saved: return L"Saved";
         case Text::settingsTitle: return L"Settings";
         case Text::settingsSubtitle:
-            return L"Appearance, directory and about";
+            return L"Appearance, directory and logs";
         case Text::languageTitle: return L"Language";
         case Text::displayLanguage: return L"Display language";
         case Text::appearanceTitle: return L"Appearance";
@@ -192,6 +193,9 @@ const Translation kTranslations[] = {
     {Text::navSettings, Language::zhCN, L"设置"},
     {Text::navSettings, Language::zhTW, L"設定"},
     {Text::navSettings, Language::ko, L"설정"},
+    {Text::navAbout, Language::zhCN, L"关于"},
+    {Text::navAbout, Language::zhTW, L"關於"},
+    {Text::navAbout, Language::ko, L"정보"},
     {Text::launchTitle, Language::zhCN, L"启动"},
     {Text::launchTitle, Language::zhTW, L"啟動"},
     {Text::launchTitle, Language::ko, L"시작"},
@@ -604,10 +608,10 @@ const Translation kTranslations[] = {
     {Text::saved, Language::zhTW, L"已儲存"},
     {Text::saved, Language::ko, L"저장됨"},
     {Text::saved, Language::ja, L"保存しました"},
-    {Text::settingsSubtitle, Language::zhCN, L"外观、目录与关于"},
-    {Text::settingsSubtitle, Language::zhTW, L"外觀、目錄與關於"},
-    {Text::settingsSubtitle, Language::ko, L"모양, 디렉터리, 정보"},
-    {Text::settingsSubtitle, Language::ja, L"外観、ディレクトリ、情報"},
+    {Text::settingsSubtitle, Language::zhCN, L"外观、目录与日志"},
+    {Text::settingsSubtitle, Language::zhTW, L"外觀、目錄與日誌"},
+    {Text::settingsSubtitle, Language::ko, L"모양, 디렉터리, 로그"},
+    {Text::settingsSubtitle, Language::ja, L"外観、ディレクトリ、ログ"},
     {Text::appearanceTitle, Language::zhCN, L"外观"},
     {Text::appearanceTitle, Language::zhTW, L"外觀"},
     {Text::appearanceTitle, Language::ko, L"모양"},
@@ -809,7 +813,7 @@ const Translation kTranslations[] = {
     {Text::memoryHint, Language::de, L"MB, leer = automatisch"},
     {Text::jvmTitle, Language::de, L"JVM-Argumente"},
     {Text::saved, Language::de, L"Gespeichert"},
-    {Text::settingsSubtitle, Language::de, L"Darstellung, Verzeichnis und Info"},
+    {Text::settingsSubtitle, Language::de, L"Darstellung, Verzeichnis und Protokolle"},
     {Text::appearanceTitle, Language::de, L"Darstellung"},
     {Text::dark, Language::de, L"Dunkel"},
     {Text::light, Language::de, L"Hell"},
@@ -894,7 +898,7 @@ const Translation kTranslations[] = {
     {Text::memoryHint, Language::es, L"MB, vacío = automático"},
     {Text::jvmTitle, Language::es, L"Argumentos de JVM"},
     {Text::saved, Language::es, L"Guardado"},
-    {Text::settingsSubtitle, Language::es, L"Apariencia, directorio y acerca de"},
+    {Text::settingsSubtitle, Language::es, L"Apariencia, directorio y registros"},
     {Text::appearanceTitle, Language::es, L"Apariencia"},
     {Text::dark, Language::es, L"Oscuro"},
     {Text::light, Language::es, L"Claro"},
@@ -980,7 +984,7 @@ const Translation kTranslations[] = {
     {Text::memoryHint, Language::fr, L"MB, vide = automatique"},
     {Text::jvmTitle, Language::fr, L"Arguments JVM"},
     {Text::saved, Language::fr, L"Enregistré"},
-    {Text::settingsSubtitle, Language::fr, L"Apparence, dossier et à propos"},
+    {Text::settingsSubtitle, Language::fr, L"Apparence, dossier et journaux"},
     {Text::appearanceTitle, Language::fr, L"Apparence"},
     {Text::dark, Language::fr, L"Sombre"},
     {Text::light, Language::fr, L"Clair"},
@@ -1067,7 +1071,7 @@ const Translation kTranslations[] = {
     {Text::memoryHint, Language::ptBR, L"MB, vazio = automático"},
     {Text::jvmTitle, Language::ptBR, L"Argumentos da JVM"},
     {Text::saved, Language::ptBR, L"Salvo"},
-    {Text::settingsSubtitle, Language::ptBR, L"Aparência, diretório e sobre"},
+    {Text::settingsSubtitle, Language::ptBR, L"Aparência, diretório e logs"},
     {Text::appearanceTitle, Language::ptBR, L"Aparência"},
     {Text::dark, Language::ptBR, L"Escuro"},
     {Text::light, Language::ptBR, L"Claro"},
@@ -1152,7 +1156,7 @@ const Translation kTranslations[] = {
     {Text::memoryHint, Language::sv, L"MB, tom = automatiskt"},
     {Text::jvmTitle, Language::sv, L"JVM-argument"},
     {Text::saved, Language::sv, L"Sparat"},
-    {Text::settingsSubtitle, Language::sv, L"Utseende, katalog och om"},
+    {Text::settingsSubtitle, Language::sv, L"Utseende, katalog och loggar"},
     {Text::appearanceTitle, Language::sv, L"Utseende"},
     {Text::dark, Language::sv, L"Mörkt"},
     {Text::light, Language::sv, L"Ljust"},
@@ -1237,6 +1241,12 @@ const Translation kTranslations[] = {
     {Text::navSettings, Language::ja, L"設定"},
     {Text::navSettings, Language::ptBR, L"Configurações"},
     {Text::navSettings, Language::sv, L"Inställningar"},
+    {Text::navAbout, Language::de, L"Über"},
+    {Text::navAbout, Language::es, L"Acerca de"},
+    {Text::navAbout, Language::fr, L"À propos"},
+    {Text::navAbout, Language::ja, L"概要"},
+    {Text::navAbout, Language::ptBR, L"Sobre"},
+    {Text::navAbout, Language::sv, L"Om"},
     {Text::launchTitle, Language::de, L"Start"},
     {Text::launchTitle, Language::es, L"Iniciar"},
     {Text::launchTitle, Language::fr, L"Lancer"},

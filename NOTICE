@@ -5,6 +5,21 @@ JO-Launcher is licensed under the Apache License 2.0; see LICENSE.
 Redistributions must include this NOTICE file; the third-party notices below
 must not be removed.
 
+Assets not covered by the Apache License:
+
+The following artwork is Copyright 2026 JO-Beacon, all rights reserved, and is
+not licensed under the Apache License 2.0:
+
+  assets/icon/*.svg
+  platform/win32/app.ico
+  site/assets/mark.svg, icon.svg, favicon.ico
+
+It may be redistributed only as part of a JO-Launcher source tree or official
+release that is unmodified and identical to the official version. Any modified
+version — including forks, derivative builds, or copies that only change the
+name or the version number — must not use it and must remove or replace these
+files before distribution. See assets/icon/LICENSE for the full statement.
+
 This product includes software and assets developed by third parties:
 
 - miniz (https://github.com/richgel999/miniz) — public domain / Unlicense
